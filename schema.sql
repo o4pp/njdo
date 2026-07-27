@@ -1,30 +1,25 @@
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS stories;
-DROP TABLE IF EXISTS friendships;
+ALTER TABLE users ADD COLUMN email TEXT;
+ALTER TABLE users ADD COLUMN bio TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN updated_at INTEGER;
+ALTER TABLE users ADD COLUMN deleted_at INTEGER;
 
-CREATE TABLE users (
-    id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    avatar_url TEXT DEFAULT 'https://api.iconify.design/solar:user-bold-duotone.svg',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
+ON users(email);
 
-CREATE TABLE stories (
+CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
-    media_url TEXT NOT NULL,
-    media_type TEXT NOT NULL, -- 'image' or 'video'
-    caption TEXT,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE friendships (
-    user_id TEXT,
-    friend_id TEXT,
-    status TEXT DEFAULT 'accepted',
-    PRIMARY KEY (user_id, friend_id)
-);
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash
+ON sessions(token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id
+ON sessions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
+ON sessions(expires_at);
