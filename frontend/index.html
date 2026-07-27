@@ -1,56 +1,24 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>نجد</title>
-
-  <link
-    rel="stylesheet"
-    href="assets/css/najd.css"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نجد - Snapchat Clone</title>
+  <link rel="stylesheet" href="assets/css/najd.css">
 </head>
-
 <body>
-
-  <main class="landing">
-
-    <h1 class="logo">
-      نجد
-    </h1>
-
-    <p>
-      المنصة الاجتماعية السعودية
-    </p>
-
-    <div class="actions">
-
-      <a
-        href="login.html"
-        class="button"
-      >
-        تسجيل الدخول
-      </a>
-
-      <a
-        href="register.html"
-        class="button secondary"
-      >
-        إنشاء حساب
-      </a>
-
+  <div class="najd-container" style="justify-content: center; align-items: center; padding: 30px; text-align: center;">
+    <h1 class="najd-logo" style="font-size: 50px; margin-bottom: 10px;">نجد</h1>
+    <p style="color: var(--najd-gray); margin-bottom: 40px; font-size: 15px;">منصتك الاجتماعية للتواصل والقصص الحية</p>
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
+      <a href="login.html" class="najd-btn" style="text-decoration: none; line-height: 20px;">تسجيل الدخول</a>
+      <a href="register.html" class="najd-btn" style="background-color: var(--najd-card); color: #fff; border: 1px solid var(--najd-border); text-decoration: none; line-height: 20px;">إنشاء حساب جديد</a>
     </div>
-
-  </main>
-
+  </div>
+  <script>
+    if (localStorage.getItem("najd_token")) {
+      window.location.href = "app.html";
+    }
+  </script>
 </body>
-
 </html>
