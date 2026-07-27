@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - نجد</title>
+  <link rel="stylesheet" href="assets/css/najd.css">
+</head>
+<body>
+  <div class="najd-container" style="justify-content: center; padding: 30px;">
+    <div style="text-align: center; margin-bottom: 40px;">
+      <h1 class="najd-logo" style="font-size: 40px;">نجد</h1>
+      <p style="color: var(--najd-gray); margin-top: 8px;">مرحباً بك مجدداً</p>
+    </div>
+
+    <form id="loginForm">
+      <input type="text" id="username" class="najd-input" placeholder="اسم المستخدم" required>
+      <input type="password" id="password" class="najd-input" placeholder="كلمة المرور" required>
+      <button type="submit" class="najd-btn" style="margin-top: 10px;">تسجيل الدخول</button>
+    </form>
+
+    <p style="text-align: center; margin-top: 20px; color: var(--najd-gray); font-size: 14px;">
+      ليس لديك حساب؟ <a href="register.html" style="color: var(--najd-yellow); text-decoration: none;">انضم إلى نجد</a>
+    </p>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const res = await NajdAPI.login(username, password);
+      if (res.success) {
+        localStorage.setItem("najd_token", res.token);
+        localStorage.setItem("najd_user", JSON.stringify(res.user));
+        window.location.href = "app.html";
+      } else {
+        alert(res.message || "حدث خطأ أثناء تسجيل الدخول");
+      }
+    });
+  </script>
+</body>
+</html>
