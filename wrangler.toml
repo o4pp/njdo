@@ -3,36 +3,19 @@ main = "index.js"
 
 compatibility_date = "2026-07-27"
 
-
-# ============================================================
-# D1 DATABASE
-# ============================================================
-
 [[d1_databases]]
 binding = "DB"
 database_name = "najd-db"
 database_id = "fe3ec421-7b15-4ab3-b192-22ea5b30b86e"
 
-
-# ============================================================
-# R2 STORAGE
-# ============================================================
-
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "najd-media"
 
-
-# ============================================================
-# DURABLE OBJECTS
-# ============================================================
-
 [durable_objects]
-
 bindings = [
   { name = "CHAT_ROOM", class_name = "ChatRoom" }
 ]
-
 
 [[migrations]]
 tag = "v1"
