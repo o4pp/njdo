@@ -6,51 +6,38 @@ const NajdAPI = {
   async request(endpoint, options = {}) {
 
     const token =
-      localStorage.getItem(
-        "najd_token"
-      );
+      localStorage.getItem("najd_token");
 
     const headers = {
-      "Content-Type":
-        "application/json",
+      "Content-Type": "application/json",
 
       ...(token
         ? {
-            Authorization:
-              `Bearer ${token}`,
+            "Authorization":
+              `Bearer ${token}`
           }
         : {}),
 
-      ...(options.headers || {}),
+      ...(options.headers || {})
     };
 
+    const response = await fetch(
+      `${API_BASE}/api${endpoint}`,
+      {
+        ...options,
+        headers
+      }
+    );
+
+    const text = await response.text();
+
     try {
-
-      const response =
-        await fetch(
-          `${API_BASE}${endpoint}`,
-          {
-            ...options,
-            headers,
-          }
-        );
-
-      const data =
-        await response.json();
-
-      return data;
-
-    } catch (error) {
-
-      console.error(
-        "Najd API Error:",
-        error
-      );
-
+      return JSON.parse(text);
+    } catch {
       return {
         success: false,
-        message:
-          "تعذر الاتصال بالخادم",
+        message: "استجابة غير صالحة من الخادم",
+        raw: text
       };
     }
   },
@@ -61,61 +48,51 @@ const NajdAPI = {
     display_name,
     email = null
   ) {
-
     return this.request(
-      "/api/auth/register",
+      "/auth/register",
       {
         method: "POST",
-
         body: JSON.stringify({
           username,
           password,
           display_name,
-          email,
-        }),
+          email
+        })
       }
     );
   },
 
-  login(
-    username,
-    password
-  ) {
-
+  login(username, password) {
     return this.request(
-      "/api/auth/login",
+      "/auth/login",
       {
         method: "POST",
-
         body: JSON.stringify({
           username,
-          password,
-        }),
+          password
+        })
+      }
+    );
+  },
+
+  logout() {
+    return this.request(
+      "/auth/logout",
+      {
+        method: "POST"
       }
     );
   },
 
   me() {
-
     return this.request(
-      "/api/auth/me"
-    );
-  },
-
-  logout() {
-
-    return this.request(
-      "/api/auth/logout",
-      {
-        method: "DELETE",
-      }
+      "/auth/me"
     );
   },
 
   getStories() {
-
     return this.request(
-      "/api/stories"
+      "/stories"
     );
   },
 
@@ -124,28 +101,26 @@ const NajdAPI = {
     media_type,
     caption
   ) {
-
     return this.request(
-      "/api/stories",
+      "/stories",
       {
         method: "POST",
-
         body: JSON.stringify({
           media_url,
           media_type,
-          caption,
-        }),
+          caption
+        })
       }
     );
   },
 
   deleteStory(id) {
-
     return this.request(
-      `/api/stories/${id}`,
+      `/stories/${id}`,
       {
-        method: "DELETE",
+        method: "DELETE"
       }
     );
-  },
+  }
+
 };
