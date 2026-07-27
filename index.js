@@ -2,11 +2,12 @@
 // NAJD PLATFORM API
 // Saudi Social Platform
 // Cloudflare Workers
-// D1 + R2 + Durable Objects + WebSocket
-// Version 2.0.0
+// D1 + Durable Objects + WebSocket
+// NO R2
+// Version 3.0.0
 // ============================================================
 
-const VERSION = "2.0.0";
+const VERSION = "3.0.0";
 const API_NAME = "NAJD API";
 
 
@@ -16,13 +17,15 @@ const API_NAME = "NAJD API";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
+
   "Access-Control-Allow-Methods":
-    "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, X-Requested-With",
 
-  "Access-Control-Max-Age": "86400",
+  "Access-Control-Max-Age":
+    "86400",
 };
 
 
@@ -30,15 +33,22 @@ const CORS_HEADERS = {
 // RESPONSE HELPERS
 // ============================================================
 
-function json(data, status = 200, headers = {}) {
+function json(
+  data,
+  status = 200,
+  headers = {}
+) {
   return new Response(
     JSON.stringify(data),
     {
       status,
+
       headers: {
         ...CORS_HEADERS,
+
         "Content-Type":
           "application/json; charset=utf-8",
+
         ...headers,
       },
     }
@@ -46,7 +56,10 @@ function json(data, status = 200, headers = {}) {
 }
 
 
-function success(data = {}, status = 200) {
+function success(
+  data = {},
+  status = 200
+) {
   return json(
     {
       success: true,
@@ -75,30 +88,13 @@ function error(
 }
 
 
-function text(
-  message,
-  status = 200,
-  contentType = "text/plain"
-) {
-  return new Response(
-    message,
-    {
-      status,
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type":
-          `${contentType}; charset=utf-8`,
-      },
-    }
-  );
-}
-
-
 // ============================================================
 // REQUEST HELPERS
 // ============================================================
 
-async function getJSON(request) {
+async function getJSON(
+  request
+) {
   try {
     return await request.json();
   } catch {
@@ -107,11 +103,17 @@ async function getJSON(request) {
 }
 
 
-function getPath(request) {
-  const pathname =
-    new URL(request.url).pathname;
+function getPath(
+  request
+) {
+  const url =
+    new URL(request.url);
 
-  return pathname.replace(/\/+$/, "") || "/";
+  return (
+    url.pathname
+      .replace(/\/+$/, "") ||
+    "/"
+  );
 }
 
 
@@ -120,7 +122,8 @@ function getQuery(
   key,
   fallback = null
 ) {
-  const url = new URL(request.url);
+  const url =
+    new URL(request.url);
 
   return (
     url.searchParams.get(key) ||
@@ -129,16 +132,25 @@ function getQuery(
 }
 
 
-function getPagination(request) {
-  const url = new URL(request.url);
+function getPagination(
+  request
+) {
+  const url =
+    new URL(request.url);
 
-  let page = Number(
-    url.searchParams.get("page") || 1
-  );
+  let page =
+    Number(
+      url.searchParams.get(
+        "page"
+      ) || 1
+    );
 
-  let limit = Number(
-    url.searchParams.get("limit") || 20
-  );
+  let limit =
+    Number(
+      url.searchParams.get(
+        "limit"
+      ) || 20
+    );
 
   if (
     !Number.isFinite(page) ||
@@ -154,28 +166,36 @@ function getPagination(request) {
     limit = 20;
   }
 
-  limit = Math.min(
-    Math.floor(limit),
-    50
-  );
+  page =
+    Math.floor(page);
 
-  page = Math.floor(page);
+  limit =
+    Math.min(
+      Math.floor(limit),
+      50
+    );
 
   return {
     page,
     limit,
-    offset: (page - 1) * limit,
+    offset:
+      (page - 1) *
+      limit,
   };
 }
 
 
-function getBearerToken(request) {
+function getBearerToken(
+  request
+) {
   const header =
     request.headers.get(
       "Authorization"
     );
 
-  if (!header) {
+  if (
+    !header
+  ) {
     return null;
   }
 
@@ -190,370 +210,9 @@ function getBearerToken(request) {
 }
 
 
-function getCookie(
-  request,
-  name
+function normalizeEmail(
+  email
 ) {
-  const cookie =
-    request.headers.get("Cookie");
-
-  if (!cookie) {
-    return null;
-  }
-
-  const parts =
-    cookie.split(";");
-
-  for (
-    const part of parts
-  ) {
-    const [
-      key,
-      ...value
-    ] =
-      part.trim().split("=");
-
-    if (key === name) {
-      try {
-        return decodeURIComponent(
-          value.join("=")
-        );
-      } catch {
-        return value.join("=");
-      }
-    }
-  }
-
-  return null;
-}
-
-
-function setCookie(
-  name,
-  value,
-  options = {}
-) {
-  const {
-    maxAge =
-      60 * 60 * 24 * 30,
-
-    httpOnly = true,
-    secure = true,
-    sameSite = "Lax",
-    path = "/",
-  } = options;
-
-  let cookie =
-    `${name}=${encodeURIComponent(value)}`;
-
-  cookie +=
-    `; Max-Age=${maxAge}`;
-
-  cookie +=
-    `; Path=${path}`;
-
-  if (httpOnly) {
-    cookie += "; HttpOnly";
-  }
-
-  if (secure) {
-    cookie += "; Secure";
-  }
-
-  if (sameSite) {
-    cookie +=
-      `; SameSite=${sameSite}`;
-  }
-
-  return cookie;
-}
-
-
-function clearCookie(name) {
-  return setCookie(
-    name,
-    "",
-    {
-      maxAge: 0,
-    }
-  );
-}
-
-
-// ============================================================
-// SECURITY / CRYPTO
-// ============================================================
-
-function randomBytes(
-  length = 32
-) {
-  const bytes =
-    new Uint8Array(length);
-
-  crypto.getRandomValues(bytes);
-
-  return bytes;
-}
-
-
-function bytesToHex(bytes) {
-  return Array
-    .from(bytes)
-    .map(
-      byte =>
-        byte
-          .toString(16)
-          .padStart(2, "0")
-    )
-    .join("");
-}
-
-
-function hexToBytes(hex) {
-  if (
-    typeof hex !== "string" ||
-    hex.length % 2 !== 0
-  ) {
-    throw new Error(
-      "Invalid hexadecimal value"
-    );
-  }
-
-  const bytes =
-    new Uint8Array(
-      hex.length / 2
-    );
-
-  for (
-    let i = 0;
-    i < bytes.length;
-    i++
-  ) {
-    bytes[i] =
-      parseInt(
-        hex.slice(
-          i * 2,
-          i * 2 + 2
-        ),
-        16
-      );
-  }
-
-  return bytes;
-}
-
-
-function bytesToBase64(bytes) {
-  let binary = "";
-
-  for (
-    const byte of bytes
-  ) {
-    binary += String.fromCharCode(
-      byte
-    );
-  }
-
-  return btoa(binary);
-}
-
-
-async function sha256(value) {
-  const data =
-    new TextEncoder().encode(
-      String(value)
-    );
-
-  const hash =
-    await crypto.subtle.digest(
-      "SHA-256",
-      data
-    );
-
-  return bytesToHex(
-    new Uint8Array(hash)
-  );
-}
-
-
-async function hashPassword(
-  password
-) {
-  const salt =
-    randomBytes(16);
-
-  const keyMaterial =
-    await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(
-        password
-      ),
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-
-  const derivedBits =
-    await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt,
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      256
-    );
-
-  return [
-    "pbkdf2",
-    "100000",
-    bytesToHex(salt),
-    bytesToHex(
-      new Uint8Array(
-        derivedBits
-      )
-    ),
-  ].join("$");
-}
-
-
-async function verifyPassword(
-  password,
-  storedHash
-) {
-  try {
-    const parts =
-      String(
-        storedHash || ""
-      ).split("$");
-
-    if (
-      parts.length !== 4
-    ) {
-      return false;
-    }
-
-    const [
-      algorithm,
-      iterationsText,
-      saltHex,
-      hashHex,
-    ] = parts;
-
-    if (
-      algorithm !== "pbkdf2"
-    ) {
-      return false;
-    }
-
-    const iterations =
-      Number(iterationsText);
-
-    if (
-      !Number.isInteger(
-        iterations
-      ) ||
-      iterations < 1
-    ) {
-      return false;
-    }
-
-    const salt =
-      hexToBytes(saltHex);
-
-    const keyMaterial =
-      await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(
-          password
-        ),
-        "PBKDF2",
-        false,
-        ["deriveBits"]
-      );
-
-    const derivedBits =
-      await crypto.subtle.deriveBits(
-        {
-          name: "PBKDF2",
-          salt,
-          iterations,
-          hash: "SHA-256",
-        },
-        keyMaterial,
-        256
-      );
-
-    const result =
-      bytesToHex(
-        new Uint8Array(
-          derivedBits
-        )
-      );
-
-    return timingSafeEqual(
-      result,
-      hashHex
-    );
-  } catch {
-    return false;
-  }
-}
-
-
-function timingSafeEqual(
-  a,
-  b
-) {
-  if (
-    typeof a !== "string" ||
-    typeof b !== "string"
-  ) {
-    return false;
-  }
-
-  if (
-    a.length !== b.length
-  ) {
-    return false;
-  }
-
-  let result = 0;
-
-  for (
-    let i = 0;
-    i < a.length;
-    i++
-  ) {
-    result |=
-      a.charCodeAt(i) ^
-      b.charCodeAt(i);
-  }
-
-  return result === 0;
-}
-
-
-function createId(
-  prefix = ""
-) {
-  const id =
-    bytesToHex(
-      randomBytes(16)
-    );
-
-  return prefix
-    ? `${prefix}_${id}`
-    : id;
-}
-
-
-// ============================================================
-// VALIDATION
-// ============================================================
-
-function normalizeEmail(email) {
   return String(
     email || ""
   )
@@ -574,7 +233,21 @@ function normalizeUsername(
 }
 
 
-function validEmail(email) {
+function cleanText(
+  value,
+  max = 5000
+) {
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .slice(0, max);
+}
+
+
+function validEmail(
+  email
+) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     .test(email);
 }
@@ -588,46 +261,42 @@ function validUsername(
 }
 
 
-function validPassword(
-  password
+function validId(
+  value
 ) {
   return (
-    typeof password === "string" &&
-    password.length >= 8
-  );
-}
-
-
-function cleanText(
-  value,
-  max = 5000
-) {
-  return String(
-    value ?? ""
-  )
-    .trim()
-    .slice(0, max);
-}
-
-
-function validId(value) {
-  return (
-    typeof value === "string" &&
+    typeof value ===
+      "string" &&
     value.length >= 8 &&
     value.length <= 200
   );
 }
 
 
+function createId(
+  prefix = ""
+) {
+  const id =
+    crypto.randomUUID();
+
+  return prefix
+    ? `${prefix}_${id}`
+    : id;
+}
+
+
 // ============================================================
-// DATABASE
+// DATABASE HELPERS
 // ============================================================
 
-function assertDatabase(env) {
+function assertDatabase(
+  env
+) {
   if (
     !env ||
     !env.DB ||
-    typeof env.DB.prepare !== "function"
+    typeof env.DB.prepare !==
+      "function"
   ) {
     throw new Error(
       "D1 binding DB is not configured"
@@ -669,7 +338,9 @@ async function dbAll(
       .bind(...params)
       .all();
 
-  return result.results || [];
+  return (
+    result.results || []
+  );
 }
 
 
@@ -689,7 +360,40 @@ async function dbRun(
 
 
 // ============================================================
-// AUTHENTICATION
+// PASSWORD HASHING
+// ============================================================
+
+async function hashPassword(
+  password
+) {
+  const data =
+    new TextEncoder()
+      .encode(
+        String(password)
+      );
+
+  const hash =
+    await crypto.subtle.digest(
+      "SHA-256",
+      data
+    );
+
+  return Array
+    .from(
+      new Uint8Array(hash)
+    )
+    .map(
+      byte =>
+        byte
+          .toString(16)
+          .padStart(2, "0")
+    )
+    .join("");
+}
+
+
+// ============================================================
+// AUTH
 // ============================================================
 
 async function createSession(
@@ -698,28 +402,27 @@ async function createSession(
   request
 ) {
   const token =
-    bytesToBase64(
-      randomBytes(48)
-    );
+    crypto.randomUUID() +
+    crypto.randomUUID();
 
   const tokenHash =
-    await sha256(token);
+    await hashPassword(
+      token
+    );
 
   const sessionId =
     createId("session");
 
-  const userAgent =
-    request.headers.get(
-      "User-Agent"
-    ) || "";
-
-  const ip =
-    request.headers.get(
-      "CF-Connecting-IP"
-    ) || "";
-
   const now =
     Date.now();
+
+  const expiresAt =
+    now +
+    30 *
+    24 *
+    60 *
+    60 *
+    1000;
 
   await dbRun(
     env,
@@ -733,20 +436,30 @@ async function createSession(
         expires_at,
         created_at
       )
+
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
       sessionId,
+
       userId,
+
       tokenHash,
-      userAgent.slice(0, 500),
-      ip.slice(0, 100),
-      now +
-        1000 *
-        60 *
-        60 *
-        24 *
-        30,
+
+      (
+        request.headers.get(
+          "User-Agent"
+        ) || ""
+      ).slice(0, 500),
+
+      (
+        request.headers.get(
+          "CF-Connecting-IP"
+        ) || ""
+      ).slice(0, 100),
+
+      expiresAt,
+
       now,
     ]
   );
@@ -759,23 +472,21 @@ async function getCurrentUser(
   request,
   env
 ) {
-  let token =
-    getBearerToken(request);
+  const token =
+    getBearerToken(
+      request
+    );
 
-  if (!token) {
-    token =
-      getCookie(
-        request,
-        "najd_session"
-      );
-  }
-
-  if (!token) {
+  if (
+    !token
+  ) {
     return null;
   }
 
   const tokenHash =
-    await sha256(token);
+    await hashPassword(
+      token
+    );
 
   return dbFirst(
     env,
@@ -798,9 +509,12 @@ async function getCurrentUser(
       INNER JOIN users u
         ON u.id = s.user_id
 
-      WHERE s.token_hash = ?
-      AND s.expires_at > ?
-      AND u.deleted_at IS NULL
+      WHERE
+        s.token_hash = ?
+
+        AND s.expires_at > ?
+
+        AND u.deleted_at IS NULL
 
       LIMIT 1
     `,
@@ -822,14 +536,18 @@ async function requireAuth(
       env
     );
 
-  if (!user) {
+  if (
+    !user
+  ) {
     return {
       ok: false,
-      response: error(
-        "يجب تسجيل الدخول أولًا",
-        "UNAUTHORIZED",
-        401
-      ),
+
+      response:
+        error(
+          "يجب تسجيل الدخول أولًا",
+          "UNAUTHORIZED",
+          401
+        ),
     };
   }
 
@@ -847,19 +565,31 @@ async function requireAuth(
 function serializeUser(
   user
 ) {
-  if (!user) {
+  if (
+    !user
+  ) {
     return null;
   }
 
   return {
-    id: user.id,
-    username: user.username,
-    email: user.email,
+    id:
+      user.id,
+
+    username:
+      user.username,
+
+    email:
+      user.email,
+
     display_name:
       user.display_name,
+
     avatar_url:
       user.avatar_url,
-    bio: user.bio,
+
+    bio:
+      user.bio,
+
     created_at:
       user.created_at,
   };
@@ -867,7 +597,7 @@ function serializeUser(
 
 
 // ============================================================
-// AUTH - REGISTER
+// REGISTER
 // ============================================================
 
 async function register(
@@ -875,13 +605,16 @@ async function register(
   env
 ) {
   const body =
-    await getJSON(request);
+    await getJSON(
+      request
+    );
 
-  if (!body) {
+  if (
+    !body
+  ) {
     return error(
       "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+      "INVALID_JSON"
     );
   }
 
@@ -896,7 +629,10 @@ async function register(
     );
 
   const password =
-    body.password;
+    String(
+      body.password ||
+      ""
+    );
 
   const displayName =
     cleanText(
@@ -906,27 +642,35 @@ async function register(
       80
     );
 
-  if (!validEmail(email)) {
+  if (
+    !validEmail(
+      email
+    )
+  ) {
     return error(
       "البريد الإلكتروني غير صحيح",
-      "INVALID_EMAIL",
-      400
+      "INVALID_EMAIL"
     );
   }
 
-  if (!validUsername(username)) {
+  if (
+    !validUsername(
+      username
+    )
+  ) {
     return error(
       "اسم المستخدم يجب أن يحتوي على 3 إلى 30 حرفًا أو رقمًا",
-      "INVALID_USERNAME",
-      400
+      "INVALID_USERNAME"
     );
   }
 
-  if (!validPassword(password)) {
+  if (
+    password.length <
+    8
+  ) {
     return error(
       "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
-      "WEAK_PASSWORD",
-      400
+      "WEAK_PASSWORD"
     );
   }
 
@@ -953,9 +697,12 @@ async function register(
       ]
     );
 
-  if (existing) {
+  if (
+    existing
+  ) {
     if (
-      existing.email === email
+      existing.email ===
+      email
     ) {
       return error(
         "البريد الإلكتروني مستخدم مسبقًا",
@@ -972,7 +719,9 @@ async function register(
   }
 
   const id =
-    createId("user");
+    createId(
+      "user"
+    );
 
   const passwordHash =
     await hashPassword(
@@ -994,9 +743,11 @@ async function register(
         avatar_url,
         bio,
         created_at,
-        updated_at
+        updated_at,
+        deleted_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
@@ -1008,6 +759,7 @@ async function register(
       "",
       now,
       now,
+      null,
     ]
   );
 
@@ -1035,35 +787,30 @@ async function register(
 
         WHERE id = ?
       `,
-      [id]
+      [
+        id,
+      ]
     );
 
-  const response =
-    success(
-      {
-        message:
-          "تم إنشاء الحساب بنجاح",
-        user:
-          serializeUser(user),
-        token,
-      },
-      201
-    );
+  return success(
+    {
+      message:
+        "تم إنشاء الحساب بنجاح",
 
-  response.headers.append(
-    "Set-Cookie",
-    setCookie(
-      "najd_session",
-      token
-    )
+      user:
+        serializeUser(
+          user
+        ),
+
+      token,
+    },
+    201
   );
-
-  return response;
 }
 
 
 // ============================================================
-// AUTH - LOGIN
+// LOGIN
 // ============================================================
 
 async function login(
@@ -1071,13 +818,16 @@ async function login(
   env
 ) {
   const body =
-    await getJSON(request);
+    await getJSON(
+      request
+    );
 
-  if (!body) {
+  if (
+    !body
+  ) {
     return error(
       "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+      "INVALID_JSON"
     );
   }
 
@@ -1092,27 +842,27 @@ async function login(
       .toLowerCase();
 
   const password =
-    body.password;
+    String(
+      body.password ||
+      ""
+    );
 
   if (
     !identifier ||
     !password
   ) {
     return error(
-      "اسم المستخدم أو البريد وكلمة المرور مطلوبة",
-      "MISSING_CREDENTIALS",
-      400
+      "بيانات الدخول مطلوبة",
+      "MISSING_CREDENTIALS"
     );
   }
 
-  // إصلاح مهم:
-  // وضع الأقواس حول email/username
-  // حتى ينطبق deleted_at على الحالتين
   const user =
     await dbFirst(
       env,
       `
         SELECT *
+
         FROM users
 
         WHERE
@@ -1121,7 +871,7 @@ async function login(
             OR username = ?
           )
 
-        AND deleted_at IS NULL
+          AND deleted_at IS NULL
 
         LIMIT 1
       `,
@@ -1131,7 +881,9 @@ async function login(
       ]
     );
 
-  if (!user) {
+  if (
+    !user
+  ) {
     return error(
       "بيانات الدخول غير صحيحة",
       "INVALID_CREDENTIALS",
@@ -1140,12 +892,14 @@ async function login(
   }
 
   const valid =
-    await verifyPassword(
-      password,
-      user.password_hash
-    );
+    await hashPassword(
+      password
+    ) ===
+    user.password_hash;
 
-  if (!valid) {
+  if (
+    !valid
+  ) {
     return error(
       "بيانات الدخول غير صحيحة",
       "INVALID_CREDENTIALS",
@@ -1153,15 +907,15 @@ async function login(
     );
   }
 
-  const now =
-    Date.now();
-
   const token =
     await createSession(
       env,
       user.id,
       request
     );
+
+  const now =
+    Date.now();
 
   await dbRun(
     env,
@@ -1181,79 +935,67 @@ async function login(
     ]
   );
 
-  const response =
-    success({
+  return success(
+    {
       message:
         "تم تسجيل الدخول",
-      user:
-        serializeUser(user),
+
       token,
-    });
 
-  response.headers.append(
-    "Set-Cookie",
-    setCookie(
-      "najd_session",
-      token
-    )
+      user:
+        serializeUser(
+          user
+        ),
+    }
   );
-
-  return response;
 }
 
 
 // ============================================================
-// AUTH - LOGOUT
+// LOGOUT
 // ============================================================
 
 async function logout(
   request,
   env
 ) {
-  let token =
-    getBearerToken(request);
+  const token =
+    getBearerToken(
+      request
+    );
 
-  if (!token) {
-    token =
-      getCookie(
-        request,
-        "najd_session"
-      );
-  }
-
-  if (token) {
+  if (
+    token
+  ) {
     const tokenHash =
-      await sha256(token);
+      await hashPassword(
+        token
+      );
 
     await dbRun(
       env,
       `
         DELETE FROM sessions
+
         WHERE token_hash = ?
       `,
-      [tokenHash]
+      [
+        tokenHash,
+      ]
     );
   }
 
-  const response =
-    success({
+  return success(
+    {
       message:
         "تم تسجيل الخروج",
-    });
-
-  response.headers.append(
-    "Set-Cookie",
-    clearCookie(
-      "najd_session"
-    )
+    }
   );
-
-  return response;
 }
 
 
 // ============================================================
-// AUTH - ME
+// ME
 // ============================================================
 
 async function me(
@@ -1266,16 +1008,20 @@ async function me(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
-  return success({
-    user:
-      serializeUser(
-        auth.user
-      ),
-  });
+  return success(
+    {
+      user:
+        serializeUser(
+          auth.user
+        ),
+    }
+  );
 }
 
 
@@ -1307,34 +1053,58 @@ async function getProfile(
 
           (
             SELECT COUNT(*)
+
             FROM followers f
-            WHERE f.following_id = u.id
+
+            WHERE
+              f.following_id =
+                u.id
+
           ) AS followers_count,
 
           (
             SELECT COUNT(*)
+
             FROM followers f
-            WHERE f.follower_id = u.id
+
+            WHERE
+              f.follower_id =
+                u.id
+
           ) AS following_count,
 
           (
             SELECT COUNT(*)
+
             FROM snaps s
-            WHERE s.user_id = u.id
-            AND s.deleted_at IS NULL
+
+            WHERE
+              s.user_id =
+                u.id
+
+              AND s.deleted_at
+                IS NULL
+
           ) AS snaps_count
 
         FROM users u
 
-        WHERE u.username = ?
-        AND u.deleted_at IS NULL
+        WHERE
+          u.username = ?
+
+          AND u.deleted_at
+            IS NULL
 
         LIMIT 1
       `,
-      [username]
+      [
+        username,
+      ]
     );
 
-  if (!user) {
+  if (
+    !user
+  ) {
     return error(
       "المستخدم غير موجود",
       "USER_NOT_FOUND",
@@ -1342,9 +1112,11 @@ async function getProfile(
     );
   }
 
-  return success({
-    user,
-  });
+  return success(
+    {
+      user,
+    }
+  );
 }
 
 
@@ -1358,18 +1130,23 @@ async function updateProfile(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
   const body =
-    await getJSON(request);
+    await getJSON(
+      request
+    );
 
-  if (!body) {
+  if (
+    !body
+  ) {
     return error(
       "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+      "INVALID_JSON"
     );
   }
 
@@ -1388,7 +1165,8 @@ async function updateProfile(
     );
 
   const avatarUrl =
-    body.avatar_url !== undefined
+    body.avatar_url !==
+    undefined
       ? cleanText(
           body.avatar_url,
           2000
@@ -1411,40 +1189,19 @@ async function updateProfile(
     [
       displayName,
       bio,
-      avatarUrl || null,
+      avatarUrl ||
+        null,
       Date.now(),
       auth.user.user_id,
     ]
   );
 
-  const user =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          id,
-          username,
-          email,
-          display_name,
-          avatar_url,
-          bio,
-          created_at
-
-        FROM users
-
-        WHERE id = ?
-      `,
-      [
-        auth.user.user_id,
-      ]
-    );
-
-  return success({
-    message:
-      "تم تحديث الملف الشخصي",
-    user:
-      serializeUser(user),
-  });
+  return success(
+    {
+      message:
+        "تم تحديث الملف الشخصي",
+    }
+  );
 }
 
 
@@ -1463,7 +1220,9 @@ async function followUser(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -1473,8 +1232,7 @@ async function followUser(
   ) {
     return error(
       "لا يمكنك متابعة نفسك",
-      "INVALID_ACTION",
-      400
+      "INVALID_ACTION"
     );
   }
 
@@ -1483,47 +1241,28 @@ async function followUser(
       env,
       `
         SELECT id
+
         FROM users
 
-        WHERE id = ?
-        AND deleted_at IS NULL
+        WHERE
+          id = ?
+
+          AND deleted_at
+            IS NULL
       `,
-      [targetUserId]
+      [
+        targetUserId,
+      ]
     );
 
-  if (!target) {
+  if (
+    !target
+  ) {
     return error(
       "المستخدم غير موجود",
       "USER_NOT_FOUND",
       404
     );
-  }
-
-  const existing =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          follower_id
-
-        FROM followers
-
-        WHERE
-          follower_id = ?
-          AND following_id = ?
-      `,
-      [
-        auth.user.user_id,
-        targetUserId,
-      ]
-    );
-
-  if (existing) {
-    return success({
-      following: true,
-      message:
-        "أنت تتابع هذا المستخدم بالفعل",
-    });
   }
 
   await dbRun(
@@ -1534,6 +1273,7 @@ async function followUser(
         following_id,
         created_at
       )
+
       VALUES (?, ?, ?)
     `,
     [
@@ -1551,9 +1291,12 @@ async function followUser(
     null
   );
 
-  return success({
-    following: true,
-  });
+  return success(
+    {
+      following:
+        true,
+    }
+  );
 }
 
 
@@ -1568,7 +1311,9 @@ async function unfollowUser(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -1579,6 +1324,7 @@ async function unfollowUser(
 
       WHERE
         follower_id = ?
+
         AND following_id = ?
     `,
     [
@@ -1587,9 +1333,12 @@ async function unfollowUser(
     ]
   );
 
-  return success({
-    following: false,
-  });
+  return success(
+    {
+      following:
+        false,
+    }
+  );
 }
 
 
@@ -1607,18 +1356,23 @@ async function createSnap(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
   const body =
-    await getJSON(request);
+    await getJSON(
+      request
+    );
 
-  if (!body) {
+  if (
+    !body
+  ) {
     return error(
       "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+      "INVALID_JSON"
     );
   }
 
@@ -1652,9 +1406,8 @@ async function createSnap(
     !caption
   ) {
     return error(
-      "يجب إضافة صورة أو فيديو أو نص",
-      "EMPTY_SNAP",
-      400
+      "يجب إضافة محتوى",
+      "EMPTY_SNAP"
     );
   }
 
@@ -1669,13 +1422,14 @@ async function createSnap(
   ) {
     return error(
       "نوع الخصوصية غير صحيح",
-      "INVALID_VISIBILITY",
-      400
+      "INVALID_VISIBILITY"
     );
   }
 
   const id =
-    createId("snap");
+    createId(
+      "snap"
+    );
 
   const now =
     Date.now();
@@ -1693,13 +1447,16 @@ async function createSnap(
         created_at,
         updated_at
       )
+
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
       auth.user.user_id,
-      mediaUrl || null,
-      mediaType || null,
+      mediaUrl ||
+        null,
+      mediaType ||
+        null,
       caption,
       visibility,
       now,
@@ -1707,17 +1464,16 @@ async function createSnap(
     ]
   );
 
-  const snap =
-    await getSnapById(
-      env,
-      id
-    );
-
   return success(
     {
       message:
         "تم نشر السنابة",
-      snap,
+
+      snap:
+        await getSnapById(
+          env,
+          id
+        ),
     },
     201
   );
@@ -1732,13 +1488,7 @@ async function getSnapById(
     env,
     `
       SELECT
-        s.id,
-        s.user_id,
-        s.media_url,
-        s.media_type,
-        s.caption,
-        s.visibility,
-        s.created_at,
+        s.*,
 
         u.username,
         u.display_name,
@@ -1746,28 +1496,46 @@ async function getSnapById(
 
         (
           SELECT COUNT(*)
+
           FROM likes l
-          WHERE l.snap_id = s.id
+
+          WHERE
+            l.snap_id =
+              s.id
+
         ) AS likes_count,
 
         (
           SELECT COUNT(*)
+
           FROM comments c
-          WHERE c.snap_id = s.id
-          AND c.deleted_at IS NULL
+
+          WHERE
+            c.snap_id =
+              s.id
+
+            AND c.deleted_at
+              IS NULL
+
         ) AS comments_count
 
       FROM snaps s
 
       INNER JOIN users u
-        ON u.id = s.user_id
+        ON u.id =
+          s.user_id
 
-      WHERE s.id = ?
-      AND s.deleted_at IS NULL
+      WHERE
+        s.id = ?
+
+        AND s.deleted_at
+          IS NULL
 
       LIMIT 1
     `,
-    [snapId]
+    [
+      snapId,
+    ]
   );
 }
 
@@ -1786,17 +1554,13 @@ async function getFeed(
     limit,
     offset,
   } =
-    getPagination(request);
+    getPagination(
+      request
+    );
 
   let query = `
     SELECT
-      s.id,
-      s.user_id,
-      s.media_url,
-      s.media_type,
-      s.caption,
-      s.visibility,
-      s.created_at,
+      s.*,
 
       u.username,
       u.display_name,
@@ -1804,30 +1568,50 @@ async function getFeed(
 
       (
         SELECT COUNT(*)
+
         FROM likes l
-        WHERE l.snap_id = s.id
+
+        WHERE
+          l.snap_id =
+            s.id
+
       ) AS likes_count,
 
       (
         SELECT COUNT(*)
+
         FROM comments c
-        WHERE c.snap_id = s.id
-        AND c.deleted_at IS NULL
+
+        WHERE
+          c.snap_id =
+            s.id
+
+          AND c.deleted_at
+            IS NULL
+
       ) AS comments_count
   `;
 
-  const params = [];
+  const params =
+    [];
 
-  if (authUser) {
+  if (
+    authUser
+  ) {
     query += `
       ,
 
       EXISTS (
         SELECT 1
+
         FROM likes ml
 
-        WHERE ml.snap_id = s.id
-        AND ml.user_id = ?
+        WHERE
+          ml.snap_id =
+            s.id
+
+          AND ml.user_id =
+            ?
       ) AS liked
     `;
 
@@ -1840,30 +1624,42 @@ async function getFeed(
     FROM snaps s
 
     INNER JOIN users u
-      ON u.id = s.user_id
+      ON u.id =
+        s.user_id
 
     WHERE
-      s.deleted_at IS NULL
-      AND u.deleted_at IS NULL
+      s.deleted_at
+        IS NULL
+
+      AND u.deleted_at
+        IS NULL
 
       AND (
-        s.visibility = 'public'
+        s.visibility =
+          'public'
   `;
 
-  if (authUser) {
+  if (
+    authUser
+  ) {
     query += `
         OR s.user_id = ?
 
         OR (
-          s.visibility = 'followers'
+          s.visibility =
+            'followers'
 
           AND EXISTS (
             SELECT 1
+
             FROM followers f
 
             WHERE
-              f.follower_id = ?
-              AND f.following_id = s.user_id
+              f.follower_id =
+                ?
+
+              AND f.following_id =
+                s.user_id
           )
         )
     `;
@@ -1877,9 +1673,11 @@ async function getFeed(
   query += `
       )
 
-    ORDER BY s.created_at DESC
+    ORDER BY
+      s.created_at DESC
 
     LIMIT ?
+
     OFFSET ?
   `;
 
@@ -1895,17 +1693,23 @@ async function getFeed(
       params
     );
 
-  return success({
-    snaps,
-    pagination: {
-      page:
-        Math.floor(
-          offset / limit
-        ) + 1,
-      limit,
-      offset,
-    },
-  });
+  return success(
+    {
+      snaps,
+
+      pagination: {
+        page:
+          Math.floor(
+            offset /
+              limit
+          ) + 1,
+
+        limit,
+
+        offset,
+      },
+    }
+  );
 }
 
 
@@ -1920,7 +1724,9 @@ async function deleteSnap(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -1934,13 +1740,20 @@ async function deleteSnap(
 
         FROM snaps
 
-        WHERE id = ?
-        AND deleted_at IS NULL
+        WHERE
+          id = ?
+
+          AND deleted_at
+            IS NULL
       `,
-      [snapId]
+      [
+        snapId,
+      ]
     );
 
-  if (!snap) {
+  if (
+    !snap
+  ) {
     return error(
       "السنابة غير موجودة",
       "SNAP_NOT_FOUND",
@@ -1980,10 +1793,12 @@ async function deleteSnap(
     ]
   );
 
-  return success({
-    message:
-      "تم حذف السنابة",
-  });
+  return success(
+    {
+      message:
+        "تم حذف السنابة",
+    }
+  );
 }
 
 
@@ -2001,18 +1816,23 @@ async function createStory(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
   const body =
-    await getJSON(request);
+    await getJSON(
+      request
+    );
 
-  if (!body) {
+  if (
+    !body
+  ) {
     return error(
       "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+      "INVALID_JSON"
     );
   }
 
@@ -2040,13 +1860,14 @@ async function createStory(
   ) {
     return error(
       "القصة فارغة",
-      "EMPTY_STORY",
-      400
+      "EMPTY_STORY"
     );
   }
 
   const id =
-    createId("story");
+    createId(
+      "story"
+    );
 
   const now =
     Date.now();
@@ -2070,13 +1891,16 @@ async function createStory(
         expires_at,
         created_at
       )
+
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
       auth.user.user_id,
-      mediaUrl || null,
-      mediaType || null,
+      mediaUrl ||
+        null,
+      mediaType ||
+        null,
       caption,
       expiresAt,
       now,
@@ -2090,15 +1914,23 @@ async function createStory(
 
       story: {
         id,
+
         user_id:
           auth.user.user_id,
+
         media_url:
-          mediaUrl || null,
+          mediaUrl ||
+          null,
+
         media_type:
-          mediaType || null,
+          mediaType ||
+          null,
+
         caption,
+
         expires_at:
           expiresAt,
+
         created_at:
           now,
       },
@@ -2112,21 +1944,12 @@ async function getStories(
   request,
   env
 ) {
-  const now =
-    Date.now();
-
   const stories =
     await dbAll(
       env,
       `
         SELECT
-          st.id,
-          st.user_id,
-          st.media_url,
-          st.media_type,
-          st.caption,
-          st.expires_at,
-          st.created_at,
+          st.*,
 
           u.username,
           u.display_name,
@@ -2135,21 +1958,29 @@ async function getStories(
         FROM stories st
 
         INNER JOIN users u
-          ON u.id = st.user_id
+          ON u.id =
+            st.user_id
 
         WHERE
-          st.expires_at > ?
-          AND u.deleted_at IS NULL
+          st.expires_at >
+            ?
+
+          AND u.deleted_at
+            IS NULL
 
         ORDER BY
           st.created_at DESC
       `,
-      [now]
+      [
+        Date.now(),
+      ]
     );
 
-  return success({
-    stories,
-  });
+  return success(
+    {
+      stories,
+    }
+  );
 }
 
 
@@ -2164,7 +1995,9 @@ async function deleteStory(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2180,10 +2013,14 @@ async function deleteStory(
 
         WHERE id = ?
       `,
-      [storyId]
+      [
+        storyId,
+      ]
     );
 
-  if (!story) {
+  if (
+    !story
+  ) {
     return error(
       "القصة غير موجودة",
       "STORY_NOT_FOUND",
@@ -2206,15 +2043,20 @@ async function deleteStory(
     env,
     `
       DELETE FROM stories
+
       WHERE id = ?
     `,
-    [storyId]
+    [
+      storyId,
+    ]
   );
 
-  return success({
-    message:
-      "تم حذف القصة",
-  });
+  return success(
+    {
+      message:
+        "تم حذف القصة",
+    }
+  );
 }
 
 
@@ -2233,7 +2075,9 @@ async function likeSnap(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2247,13 +2091,20 @@ async function likeSnap(
 
         FROM snaps
 
-        WHERE id = ?
-        AND deleted_at IS NULL
+        WHERE
+          id = ?
+
+          AND deleted_at
+            IS NULL
       `,
-      [snapId]
+      [
+        snapId,
+      ]
     );
 
-  if (!snap) {
+  if (
+    !snap
+  ) {
     return error(
       "السنابة غير موجودة",
       "SNAP_NOT_FOUND",
@@ -2269,6 +2120,7 @@ async function likeSnap(
         snap_id,
         created_at
       )
+
       VALUES (?, ?, ?)
     `,
     [
@@ -2278,29 +2130,9 @@ async function likeSnap(
     ]
   );
 
-  const existing =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          user_id
-
-        FROM likes
-
-        WHERE
-          user_id = ?
-          AND snap_id = ?
-      `,
-      [
-        auth.user.user_id,
-        snapId,
-      ]
-    );
-
   if (
-    existing &&
     snap.user_id !==
-      auth.user.user_id
+    auth.user.user_id
   ) {
     await createNotification(
       env,
@@ -2311,9 +2143,12 @@ async function likeSnap(
     );
   }
 
-  return success({
-    liked: true,
-  });
+  return success(
+    {
+      liked:
+        true,
+    }
+  );
 }
 
 
@@ -2328,7 +2163,9 @@ async function unlikeSnap(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2339,6 +2176,7 @@ async function unlikeSnap(
 
       WHERE
         user_id = ?
+
         AND snap_id = ?
     `,
     [
@@ -2347,9 +2185,12 @@ async function unlikeSnap(
     ]
   );
 
-  return success({
-    liked: false,
-  });
+  return success(
+    {
+      liked:
+        false,
+    }
+  );
 }
 
 
@@ -2368,32 +2209,29 @@ async function createComment(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
   const body =
-    await getJSON(request);
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+    await getJSON(
+      request
     );
-  }
 
   const content =
     cleanText(
-      body.content,
+      body?.content,
       1000
     );
 
-  if (!content) {
+  if (
+    !content
+  ) {
     return error(
       "التعليق فارغ",
-      "EMPTY_COMMENT",
-      400
+      "EMPTY_COMMENT"
     );
   }
 
@@ -2407,13 +2245,20 @@ async function createComment(
 
         FROM snaps
 
-        WHERE id = ?
-        AND deleted_at IS NULL
+        WHERE
+          id = ?
+
+          AND deleted_at
+            IS NULL
       `,
-      [snapId]
+      [
+        snapId,
+      ]
     );
 
-  if (!snap) {
+  if (
+    !snap
+  ) {
     return error(
       "السنابة غير موجودة",
       "SNAP_NOT_FOUND",
@@ -2422,7 +2267,9 @@ async function createComment(
   }
 
   const id =
-    createId("comment");
+    createId(
+      "comment"
+    );
 
   const now =
     Date.now();
@@ -2437,6 +2284,7 @@ async function createComment(
         content,
         created_at
       )
+
       VALUES (?, ?, ?, ?, ?)
     `,
     [
@@ -2461,34 +2309,32 @@ async function createComment(
     );
   }
 
-  const comment =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          c.id,
-          c.snap_id,
-          c.user_id,
-          c.content,
-          c.created_at,
-
-          u.username,
-          u.display_name,
-          u.avatar_url
-
-        FROM comments c
-
-        INNER JOIN users u
-          ON u.id = c.user_id
-
-        WHERE c.id = ?
-      `,
-      [id]
-    );
-
   return success(
     {
-      comment,
+      comment:
+        await dbFirst(
+          env,
+          `
+            SELECT
+              c.*,
+
+              u.username,
+              u.display_name,
+              u.avatar_url
+
+            FROM comments c
+
+            INNER JOIN users u
+              ON u.id =
+                c.user_id
+
+            WHERE
+              c.id = ?
+          `,
+          [
+            id,
+          ]
+        ),
     },
     201
   );
@@ -2504,18 +2350,16 @@ async function getComments(
     limit,
     offset,
   } =
-    getPagination(request);
+    getPagination(
+      request
+    );
 
   const comments =
     await dbAll(
       env,
       `
         SELECT
-          c.id,
-          c.snap_id,
-          c.user_id,
-          c.content,
-          c.created_at,
+          c.*,
 
           u.username,
           u.display_name,
@@ -2524,16 +2368,20 @@ async function getComments(
         FROM comments c
 
         INNER JOIN users u
-          ON u.id = c.user_id
+          ON u.id =
+            c.user_id
 
         WHERE
           c.snap_id = ?
-          AND c.deleted_at IS NULL
+
+          AND c.deleted_at
+            IS NULL
 
         ORDER BY
           c.created_at ASC
 
         LIMIT ?
+
         OFFSET ?
       `,
       [
@@ -2543,13 +2391,11 @@ async function getComments(
       ]
     );
 
-  return success({
-    comments,
-    pagination: {
-      limit,
-      offset,
-    },
-  });
+  return success(
+    {
+      comments,
+    }
+  );
 }
 
 
@@ -2572,15 +2418,18 @@ async function search(
     );
 
   if (
-    q.length < 2
+    q.length <
+    2
   ) {
-    return success({
-      users: [],
-      snaps: [],
-    });
+    return success(
+      {
+        users: [],
+        snaps: [],
+      }
+    );
   }
 
-  const searchTerm =
+  const term =
     `%${q}%`;
 
   const users =
@@ -2597,10 +2446,12 @@ async function search(
         FROM users
 
         WHERE
-          deleted_at IS NULL
+          deleted_at
+            IS NULL
 
           AND (
             username LIKE ?
+
             OR display_name LIKE ?
           )
 
@@ -2610,8 +2461,8 @@ async function search(
         LIMIT 20
       `,
       [
-        searchTerm,
-        searchTerm,
+        term,
+        term,
       ]
     );
 
@@ -2620,12 +2471,7 @@ async function search(
       env,
       `
         SELECT
-          s.id,
-          s.user_id,
-          s.media_url,
-          s.media_type,
-          s.caption,
-          s.created_at,
+          s.*,
 
           u.username,
           u.display_name,
@@ -2634,11 +2480,16 @@ async function search(
         FROM snaps s
 
         INNER JOIN users u
-          ON u.id = s.user_id
+          ON u.id =
+            s.user_id
 
         WHERE
-          s.deleted_at IS NULL
-          AND s.visibility = 'public'
+          s.deleted_at
+            IS NULL
+
+          AND s.visibility =
+            'public'
+
           AND s.caption LIKE ?
 
         ORDER BY
@@ -2646,13 +2497,17 @@ async function search(
 
         LIMIT 20
       `,
-      [searchTerm]
+      [
+        term,
+      ]
     );
 
-  return success({
-    users,
-    snaps,
-  });
+  return success(
+    {
+      users,
+      snaps,
+    }
+  );
 }
 
 
@@ -2668,7 +2523,8 @@ async function createNotification(
   referenceId
 ) {
   if (
-    recipientId === actorId
+    recipientId ===
+    actorId
   ) {
     return;
   }
@@ -2685,17 +2541,24 @@ async function createNotification(
         is_read,
         created_at
       )
+
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
       createId(
         "notification"
       ),
+
       recipientId,
+
       actorId,
+
       type,
+
       referenceId,
+
       0,
+
       Date.now(),
     ]
   );
@@ -2712,7 +2575,9 @@ async function getNotifications(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2720,28 +2585,28 @@ async function getNotifications(
     limit,
     offset,
   } =
-    getPagination(request);
+    getPagination(
+      request
+    );
 
   const notifications =
     await dbAll(
       env,
       `
         SELECT
-          n.id,
-          n.type,
-          n.reference_id,
-          n.is_read,
-          n.created_at,
+          n.*,
 
-          u.id AS actor_id,
           u.username AS actor_username,
+
           u.display_name AS actor_display_name,
+
           u.avatar_url AS actor_avatar_url
 
         FROM notifications n
 
         INNER JOIN users u
-          ON u.id = n.actor_id
+          ON u.id =
+            n.actor_id
 
         WHERE
           n.recipient_id = ?
@@ -2750,6 +2615,7 @@ async function getNotifications(
           n.created_at DESC
 
         LIMIT ?
+
         OFFSET ?
       `,
       [
@@ -2759,9 +2625,11 @@ async function getNotifications(
       ]
     );
 
-  return success({
-    notifications,
-  });
+  return success(
+    {
+      notifications,
+    }
+  );
 }
 
 
@@ -2775,7 +2643,9 @@ async function markNotificationsRead(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2784,19 +2654,23 @@ async function markNotificationsRead(
     `
       UPDATE notifications
 
-      SET is_read = 1
+      SET
+        is_read = 1
 
-      WHERE recipient_id = ?
+      WHERE
+        recipient_id = ?
     `,
     [
       auth.user.user_id,
     ]
   );
 
-  return success({
-    message:
-      "تم تحديث الإشعارات",
-  });
+  return success(
+    {
+      message:
+        "تم تحديث الإشعارات",
+    }
+  );
 }
 
 
@@ -2814,24 +2688,20 @@ async function createConversation(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
   const body =
-    await getJSON(request);
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+    await getJSON(
+      request
     );
-  }
 
   const memberIds =
     Array.isArray(
-      body.member_ids
+      body?.member_ids
     )
       ? body.member_ids
       : [];
@@ -2850,19 +2720,20 @@ async function createConversation(
     ];
 
   if (
-    uniqueMembers.length < 2
+    uniqueMembers.length <
+    2
   ) {
     return error(
       "يجب إضافة مستخدم آخر",
-      "INVALID_MEMBERS",
-      400
+      "INVALID_MEMBERS"
     );
   }
 
   const placeholders =
     uniqueMembers
       .map(
-        () => "?"
+        () =>
+          "?"
       )
       .join(",");
 
@@ -2870,12 +2741,18 @@ async function createConversation(
     await dbAll(
       env,
       `
-        SELECT id
+        SELECT
+          id
+
         FROM users
 
         WHERE
-          id IN (${placeholders})
-          AND deleted_at IS NULL
+          id IN (
+            ${placeholders}
+          )
+
+          AND deleted_at
+            IS NULL
       `,
       uniqueMembers
     );
@@ -2892,7 +2769,8 @@ async function createConversation(
   }
 
   const type =
-    uniqueMembers.length === 2
+    uniqueMembers.length ===
+    2
       ? "direct"
       : "group";
 
@@ -2914,6 +2792,7 @@ async function createConversation(
         created_at,
         updated_at
       )
+
       VALUES (?, ?, ?, ?, ?)
     `,
     [
@@ -2937,6 +2816,7 @@ async function createConversation(
           user_id,
           joined_at
         )
+
         VALUES (?, ?, ?)
       `,
       [
@@ -2952,9 +2832,12 @@ async function createConversation(
       conversation: {
         id:
           conversationId,
+
         type,
+
         members:
           uniqueMembers,
+
         created_at:
           now,
       },
@@ -2974,7 +2857,9 @@ async function getConversations(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -2989,46 +2874,37 @@ async function getConversations(
           c.updated_at,
 
           (
-            SELECT m.content
+            SELECT
+              m.content
+
             FROM messages m
 
             WHERE
-              m.conversation_id = c.id
-              AND m.deleted_at IS NULL
+              m.conversation_id =
+                c.id
+
+              AND m.deleted_at
+                IS NULL
 
             ORDER BY
               m.created_at DESC
 
             LIMIT 1
-          ) AS last_message,
 
-          (
-            SELECT m.created_at
-            FROM messages m
-
-            WHERE
-              m.conversation_id = c.id
-              AND m.deleted_at IS NULL
-
-            ORDER BY
-              m.created_at DESC
-
-            LIMIT 1
-          ) AS last_message_at
+          ) AS last_message
 
         FROM conversations c
 
         INNER JOIN conversation_members cm
-          ON cm.conversation_id = c.id
+
+          ON cm.conversation_id =
+            c.id
 
         WHERE
           cm.user_id = ?
 
         ORDER BY
-          COALESCE(
-            last_message_at,
-            c.updated_at
-          ) DESC
+          c.updated_at DESC
       `,
       [
         auth.user.user_id,
@@ -3052,10 +2928,12 @@ async function getConversations(
           FROM conversation_members cm
 
           INNER JOIN users u
-            ON u.id = cm.user_id
+            ON u.id =
+              cm.user_id
 
           WHERE
-            cm.conversation_id = ?
+            cm.conversation_id =
+              ?
         `,
         [
           conversation.id,
@@ -3063,9 +2941,11 @@ async function getConversations(
       );
   }
 
-  return success({
-    conversations,
-  });
+  return success(
+    {
+      conversations,
+    }
+  );
 }
 
 
@@ -3080,7 +2960,9 @@ async function getConversationMessages(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -3095,6 +2977,7 @@ async function getConversationMessages(
 
         WHERE
           conversation_id = ?
+
           AND user_id = ?
       `,
       [
@@ -3103,9 +2986,11 @@ async function getConversationMessages(
       ]
     );
 
-  if (!member) {
+  if (
+    !member
+  ) {
     return error(
-      "لا تملك صلاحية الوصول إلى هذه المحادثة",
+      "لا تملك صلاحية الوصول",
       "FORBIDDEN",
       403
     );
@@ -3115,20 +3000,16 @@ async function getConversationMessages(
     limit,
     offset,
   } =
-    getPagination(request);
+    getPagination(
+      request
+    );
 
   const messages =
     await dbAll(
       env,
       `
         SELECT
-          m.id,
-          m.conversation_id,
-          m.sender_id,
-          m.content,
-          m.media_url,
-          m.media_type,
-          m.created_at,
+          m.*,
 
           u.username,
           u.display_name,
@@ -3137,16 +3018,21 @@ async function getConversationMessages(
         FROM messages m
 
         INNER JOIN users u
-          ON u.id = m.sender_id
+          ON u.id =
+            m.sender_id
 
         WHERE
-          m.conversation_id = ?
-          AND m.deleted_at IS NULL
+          m.conversation_id =
+            ?
+
+          AND m.deleted_at
+            IS NULL
 
         ORDER BY
           m.created_at DESC
 
         LIMIT ?
+
         OFFSET ?
       `,
       [
@@ -3156,10 +3042,12 @@ async function getConversationMessages(
       ]
     );
 
-  return success({
-    messages:
-      messages.reverse(),
-  });
+  return success(
+    {
+      messages:
+        messages.reverse(),
+    }
+  );
 }
 
 
@@ -3174,7 +3062,9 @@ async function sendMessage(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -3189,6 +3079,7 @@ async function sendMessage(
 
         WHERE
           conversation_id = ?
+
           AND user_id = ?
       `,
       [
@@ -3197,56 +3088,40 @@ async function sendMessage(
       ]
     );
 
-  if (!member) {
+  if (
+    !member
+  ) {
     return error(
-      "لا تملك صلاحية الوصول إلى هذه المحادثة",
+      "لا تملك صلاحية الوصول",
       "FORBIDDEN",
       403
     );
   }
 
   const body =
-    await getJSON(request);
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
+    await getJSON(
+      request
     );
-  }
 
   const content =
     cleanText(
-      body.content,
+      body?.content,
       5000
     );
 
-  const mediaUrl =
-    cleanText(
-      body.media_url,
-      2000
-    );
-
-  const mediaType =
-    cleanText(
-      body.media_type,
-      50
-    );
-
   if (
-    !content &&
-    !mediaUrl
+    !content
   ) {
     return error(
       "الرسالة فارغة",
-      "EMPTY_MESSAGE",
-      400
+      "EMPTY_MESSAGE"
     );
   }
 
   const id =
-    createId("message");
+    createId(
+      "message"
+    );
 
   const now =
     Date.now();
@@ -3259,19 +3134,16 @@ async function sendMessage(
         conversation_id,
         sender_id,
         content,
-        media_url,
-        media_type,
         created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+
+      VALUES (?, ?, ?, ?, ?)
     `,
     [
       id,
       conversationId,
       auth.user.user_id,
       content,
-      mediaUrl || null,
-      mediaType || null,
       now,
     ]
   );
@@ -3281,9 +3153,11 @@ async function sendMessage(
     `
       UPDATE conversations
 
-      SET updated_at = ?
+      SET
+        updated_at = ?
 
-      WHERE id = ?
+      WHERE
+        id = ?
     `,
     [
       now,
@@ -3291,37 +3165,32 @@ async function sendMessage(
     ]
   );
 
-  const message =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          m.id,
-          m.conversation_id,
-          m.sender_id,
-          m.content,
-          m.media_url,
-          m.media_type,
-          m.created_at,
-
-          u.username,
-          u.display_name,
-          u.avatar_url
-
-        FROM messages m
-
-        INNER JOIN users u
-          ON u.id = m.sender_id
-
-        WHERE
-          m.id = ?
-      `,
-      [id]
-    );
-
   return success(
     {
-      message,
+      message:
+        await dbFirst(
+          env,
+          `
+            SELECT
+              m.*,
+
+              u.username,
+              u.display_name,
+              u.avatar_url
+
+            FROM messages m
+
+            INNER JOIN users u
+              ON u.id =
+                m.sender_id
+
+            WHERE
+              m.id = ?
+          `,
+          [
+            id,
+          ]
+        ),
     },
     201
   );
@@ -3329,298 +3198,7 @@ async function sendMessage(
 
 
 // ============================================================
-// R2 UPLOAD
-// ============================================================
-
-async function uploadMedia(
-  request,
-  env
-) {
-  const auth =
-    await requireAuth(
-      request,
-      env
-    );
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  if (
-    !env.MEDIA ||
-    typeof env.MEDIA.put !==
-      "function"
-  ) {
-    return error(
-      "R2 غير مربوط في Worker",
-      "R2_NOT_CONFIGURED",
-      500
-    );
-  }
-
-  const contentType =
-    request.headers.get(
-      "Content-Type"
-    ) || "";
-
-  if (
-    !contentType.includes(
-      "multipart/form-data"
-    )
-  ) {
-    return error(
-      "يجب إرسال multipart/form-data",
-      "INVALID_UPLOAD",
-      400
-    );
-  }
-
-  let formData;
-
-  try {
-    formData =
-      await request.formData();
-  } catch {
-    return error(
-      "تعذر قراءة الملف",
-      "INVALID_FORM_DATA",
-      400
-    );
-  }
-
-  const file =
-    formData.get("file");
-
-  if (
-    !file ||
-    typeof file.arrayBuffer !==
-      "function"
-  ) {
-    return error(
-      "الملف غير موجود",
-      "FILE_REQUIRED",
-      400
-    );
-  }
-
-  const maxSize =
-    100 *
-    1024 *
-    1024;
-
-  if (
-    file.size > maxSize
-  ) {
-    return error(
-      "حجم الملف يتجاوز 100MB",
-      "FILE_TOO_LARGE",
-      413
-    );
-  }
-
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "video/mp4",
-    "video/webm",
-    "application/pdf",
-  ];
-
-  if (
-    !allowedTypes.includes(
-      file.type
-    )
-  ) {
-    return error(
-      "نوع الملف غير مدعوم",
-      "UNSUPPORTED_FILE_TYPE",
-      415
-    );
-  }
-
-  const extension =
-    getExtension(
-      file.name,
-      file.type
-    );
-
-  const key =
-    [
-      "users",
-      auth.user.user_id,
-      new Date()
-        .getUTCFullYear(),
-      createId(
-        "media"
-      ) + extension,
-    ].join("/");
-
-  const arrayBuffer =
-    await file.arrayBuffer();
-
-  await env.MEDIA.put(
-    key,
-    arrayBuffer,
-    {
-      httpMetadata: {
-        contentType:
-          file.type,
-      },
-
-      customMetadata: {
-        userId:
-          auth.user.user_id,
-
-        originalName:
-          String(
-            file.name || ""
-          ).slice(
-            0,
-            500
-          ),
-      },
-    }
-  );
-
-  const publicBaseUrl =
-    cleanText(
-      env.MEDIA_PUBLIC_URL,
-      2000
-    );
-
-  const url =
-    publicBaseUrl
-      ? `${publicBaseUrl.replace(
-          /\/$/,
-          ""
-        )}/${key}`
-      : `/media/${key}`;
-
-  return success(
-    {
-      key,
-      url,
-      type:
-        file.type,
-      size:
-        file.size,
-    },
-    201
-  );
-}
-
-
-function getExtension(
-  filename,
-  contentType
-) {
-  const known = {
-    "image/jpeg":
-      ".jpg",
-
-    "image/png":
-      ".png",
-
-    "image/webp":
-      ".webp",
-
-    "image/gif":
-      ".gif",
-
-    "video/mp4":
-      ".mp4",
-
-    "video/webm":
-      ".webm",
-
-    "application/pdf":
-      ".pdf",
-  };
-
-  const match =
-    String(
-      filename || ""
-    ).match(
-      /\.[a-zA-Z0-9]+$/
-    );
-
-  return match
-    ? match[0].toLowerCase()
-    : known[contentType] || "";
-}
-
-
-// ============================================================
-// R2 MEDIA
-// ============================================================
-
-async function getMedia(
-  request,
-  env,
-  key
-) {
-  if (
-    !env.MEDIA ||
-    typeof env.MEDIA.get !==
-      "function"
-  ) {
-    return error(
-      "R2 غير مربوط",
-      "R2_NOT_CONFIGURED",
-      500
-    );
-  }
-
-  const safeKey =
-    decodeURIComponent(
-      key
-    );
-
-  const object =
-    await env.MEDIA.get(
-      safeKey
-    );
-
-  if (!object) {
-    return error(
-      "الملف غير موجود",
-      "MEDIA_NOT_FOUND",
-      404
-    );
-  }
-
-  const headers =
-    new Headers(
-      CORS_HEADERS
-    );
-
-  object.writeHttpMetadata(
-    headers
-  );
-
-  headers.set(
-    "ETag",
-    object.httpEtag
-  );
-
-  headers.set(
-    "Cache-Control",
-    "public, max-age=31536000, immutable"
-  );
-
-  return new Response(
-    object.body,
-    {
-      headers,
-    }
-  );
-}
-
-
-// ============================================================
-// WEBSOCKET ROUTE
+// WEBSOCKET
 // ============================================================
 
 async function handleWebSocket(
@@ -3634,7 +3212,9 @@ async function handleWebSocket(
       env
     );
 
-  if (!auth.ok) {
+  if (
+    !auth.ok
+  ) {
     return auth.response;
   }
 
@@ -3649,6 +3229,7 @@ async function handleWebSocket(
 
         WHERE
           conversation_id = ?
+
           AND user_id = ?
       `,
       [
@@ -3657,62 +3238,40 @@ async function handleWebSocket(
       ]
     );
 
-  if (!member) {
+  if (
+    !member
+  ) {
     return error(
-      "لا تملك صلاحية الوصول للمحادثة",
+      "لا تملك صلاحية الوصول",
       "FORBIDDEN",
       403
     );
   }
 
   if (
-    !env.CHAT_ROOMS ||
-    typeof env.CHAT_ROOMS.idFromName !==
+    !env.CHAT_ROOM ||
+    typeof env.CHAT_ROOM.idFromName !==
       "function"
   ) {
     return error(
-      "Durable Objects غير مهيأة",
+      "Durable Object غير مربوط",
       "DO_NOT_CONFIGURED",
       500
     );
   }
 
   const id =
-    env.CHAT_ROOMS.idFromName(
+    env.CHAT_ROOM.idFromName(
       conversationId
     );
 
   const stub =
-    env.CHAT_ROOMS.get(id);
-
-  const headers =
-    new Headers(
-      request.headers
-    );
-
-  headers.set(
-    "X-NAJD-USER-ID",
-    auth.user.user_id
-  );
-
-  headers.set(
-    "X-NAJD-USERNAME",
-    auth.user.username
-  );
-
-  const upgradedRequest =
-    new Request(
-      request,
-      {
-        headers,
-      }
+    env.CHAT_ROOM.get(
+      id
     );
 
   return stub.fetch(
-    new Request(
-      `https://chat.internal/ws/${conversationId}`,
-      upgradedRequest
-    )
+    request
   );
 }
 
@@ -3725,10 +3284,12 @@ async function health(
   env
 ) {
   let database =
-    "unknown";
+    false;
 
   try {
-    assertDatabase(env);
+    assertDatabase(
+      env
+    );
 
     await env.DB
       .prepare(
@@ -3737,44 +3298,46 @@ async function health(
       .first();
 
     database =
-      "connected";
-  } catch {
+      true;
+
+  } catch (
+    err
+  ) {
     database =
-      "error";
+      false;
   }
 
-  return success({
-    name:
-      API_NAME,
+  return success(
+    {
+      name:
+        API_NAME,
 
-    version:
-      VERSION,
+      version:
+        VERSION,
 
-    status:
-      "online",
+      status:
+        "online",
 
-    database,
+      database:
+        database
+          ? "connected"
+          : "error",
 
-    services: {
-      d1:
-        database ===
-        "connected",
+      services: {
+        d1:
+          database,
 
-      r2:
-        Boolean(
-          env.MEDIA
-        ),
+        durable_objects:
+          Boolean(
+            env.CHAT_ROOM
+          ),
+      },
 
-      durable_objects:
-        Boolean(
-          env.CHAT_ROOMS
-        ),
-    },
-
-    timestamp:
-      new Date()
-        .toISOString(),
-  });
+      timestamp:
+        new Date()
+          .toISOString(),
+    }
+  );
 }
 
 
@@ -3787,10 +3350,13 @@ async function apiRouter(
   env
 ) {
   const method =
-    request.method;
+    request.method
+      .toUpperCase();
 
   const path =
-    getPath(request);
+    getPath(
+      request
+    );
 
 
   // ==========================================================
@@ -3805,7 +3371,9 @@ async function apiRouter(
       path === "/health"
     )
   ) {
-    return health(env);
+    return health(
+      env
+    );
   }
 
 
@@ -3873,7 +3441,9 @@ async function apiRouter(
         env
       );
 
-    if (!auth.ok) {
+    if (
+      !auth.ok
+    ) {
       return auth.response;
     }
 
@@ -3883,6 +3453,7 @@ async function apiRouter(
       auth.user.username
     );
   }
+
 
   if (
     method === "PUT" &&
@@ -3895,10 +3466,12 @@ async function apiRouter(
     );
   }
 
+
   const profileMatch =
     path.match(
       /^\/api\/users\/([^/]+)$/
     );
+
 
   if (
     method === "GET" &&
@@ -3921,6 +3494,7 @@ async function apiRouter(
       /^\/api\/users\/([^/]+)\/follow$/
     );
 
+
   if (
     method === "POST" &&
     followMatch
@@ -3931,6 +3505,7 @@ async function apiRouter(
       followMatch[1]
     );
   }
+
 
   if (
     method === "DELETE" &&
@@ -3975,10 +3550,12 @@ async function apiRouter(
     );
   }
 
+
   const snapMatch =
     path.match(
       /^\/api\/snaps\/([^/]+)$/
     );
+
 
   if (
     method === "DELETE" &&
@@ -4001,6 +3578,7 @@ async function apiRouter(
       /^\/api\/snaps\/([^/]+)\/like$/
     );
 
+
   if (
     method === "POST" &&
     likeMatch
@@ -4011,6 +3589,7 @@ async function apiRouter(
       likeMatch[1]
     );
   }
+
 
   if (
     method === "DELETE" &&
@@ -4028,30 +3607,34 @@ async function apiRouter(
   // COMMENTS
   // ==========================================================
 
-  const commentsMatch =
+  const commentMatch =
     path.match(
       /^\/api\/snaps\/([^/]+)\/comments$/
     );
 
-  if (
-    method === "GET" &&
-    commentsMatch
-  ) {
-    return getComments(
-      request,
-      env,
-      commentsMatch[1]
-    );
-  }
 
   if (
-    method === "POST" &&
-    commentsMatch
+    commentMatch &&
+    method ===
+      "POST"
   ) {
     return createComment(
       request,
       env,
-      commentsMatch[1]
+      commentMatch[1]
+    );
+  }
+
+
+  if (
+    commentMatch &&
+    method ===
+      "GET"
+  ) {
+    return getComments(
+      request,
+      env,
+      commentMatch[1]
     );
   }
 
@@ -4059,17 +3642,6 @@ async function apiRouter(
   // ==========================================================
   // STORIES
   // ==========================================================
-
-  if (
-    method === "GET" &&
-    path ===
-      "/api/stories"
-  ) {
-    return getStories(
-      request,
-      env
-    );
-  }
 
   if (
     method === "POST" &&
@@ -4082,10 +3654,24 @@ async function apiRouter(
     );
   }
 
+
+  if (
+    method === "GET" &&
+    path ===
+      "/api/stories"
+  ) {
+    return getStories(
+      request,
+      env
+    );
+  }
+
+
   const storyMatch =
     path.match(
       /^\/api\/stories\/([^/]+)$/
     );
+
 
   if (
     method === "DELETE" &&
@@ -4130,6 +3716,7 @@ async function apiRouter(
     );
   }
 
+
   if (
     method === "POST" &&
     path ===
@@ -4147,17 +3734,6 @@ async function apiRouter(
   // ==========================================================
 
   if (
-    method === "GET" &&
-    path ===
-      "/api/conversations"
-  ) {
-    return getConversations(
-      request,
-      env
-    );
-  }
-
-  if (
     method === "POST" &&
     path ===
       "/api/conversations"
@@ -4168,14 +3744,29 @@ async function apiRouter(
     );
   }
 
+
+  if (
+    method === "GET" &&
+    path ===
+      "/api/conversations"
+  ) {
+    return getConversations(
+      request,
+      env
+    );
+  }
+
+
   const conversationMessagesMatch =
     path.match(
       /^\/api\/conversations\/([^/]+)\/messages$/
     );
 
+
   if (
-    method === "GET" &&
-    conversationMessagesMatch
+    conversationMessagesMatch &&
+    method ===
+      "GET"
   ) {
     return getConversationMessages(
       request,
@@ -4184,9 +3775,11 @@ async function apiRouter(
     );
   }
 
+
   if (
-    method === "POST" &&
-    conversationMessagesMatch
+    conversationMessagesMatch &&
+    method ===
+      "POST"
   ) {
     return sendMessage(
       request,
@@ -4202,16 +3795,14 @@ async function apiRouter(
 
   const websocketMatch =
     path.match(
-      /^\/ws\/chat\/([^/]+)$/
+      /^\/api\/chat\/([^/]+)$/
     );
 
+
   if (
-    method === "GET" &&
     websocketMatch &&
-    request.headers
-      .get("Upgrade")
-      ?.toLowerCase() ===
-      "websocket"
+    method ===
+      "GET"
   ) {
     return handleWebSocket(
       request,
@@ -4222,44 +3813,7 @@ async function apiRouter(
 
 
   // ==========================================================
-  // UPLOAD
-  // ==========================================================
-
-  if (
-    method === "POST" &&
-    path ===
-      "/api/upload"
-  ) {
-    return uploadMedia(
-      request,
-      env
-    );
-  }
-
-
-  // ==========================================================
-  // R2 MEDIA
-  // ==========================================================
-
-  const mediaMatch =
-    path.match(
-      /^\/media\/(.+)$/
-    );
-
-  if (
-    method === "GET" &&
-    mediaMatch
-  ) {
-    return getMedia(
-      request,
-      env,
-      mediaMatch[1]
-    );
-  }
-
-
-  // ==========================================================
-  // NOT FOUND
+  // 404
   // ==========================================================
 
   return error(
@@ -4275,57 +3829,38 @@ async function apiRouter(
 
 
 // ============================================================
-// GLOBAL WORKER
+// WORKER EXPORT
 // ============================================================
 
 export default {
+
   async fetch(
     request,
     env,
     ctx
   ) {
     try {
-      if (
-        request.method ===
-        "OPTIONS"
-      ) {
-        return new Response(
-          null,
-          {
-            status: 204,
-            headers:
-              CORS_HEADERS,
-          }
-        );
-      }
-
       return await apiRouter(
         request,
         env
       );
-    } catch (err) {
+    } catch (
+      err
+    ) {
       console.error(
         "NAJD API ERROR:",
         err
       );
 
       return error(
-        "حدث خطأ داخلي في الخادم",
-        "INTERNAL_SERVER_ERROR",
-        500,
-        env.ENVIRONMENT ===
-          "development"
-          ? {
-              details:
-                String(
-                  err?.message ||
-                  err
-                ),
-            }
-          : {}
+        err.message ||
+          "Internal Server Error",
+        "INTERNAL_ERROR",
+        500
       );
     }
   },
+
 };
 
 
@@ -4334,6 +3869,7 @@ export default {
 // ============================================================
 
 export class ChatRoom {
+
   constructor(
     state,
     env
@@ -4344,22 +3880,25 @@ export class ChatRoom {
     this.env =
       env;
 
-    this.ctx =
-      state;
+    this.sessions =
+      new Set();
   }
 
 
   async fetch(
     request
   ) {
+    const upgrade =
+      request.headers.get(
+        "Upgrade"
+      );
+
     if (
-      request.headers
-        .get("Upgrade")
-        ?.toLowerCase() !==
+      upgrade !==
       "websocket"
     ) {
       return new Response(
-        "WebSocket Required",
+        "Expected WebSocket",
         {
           status: 426,
         }
@@ -4369,75 +3908,101 @@ export class ChatRoom {
     const pair =
       new WebSocketPair();
 
-    const [
-      client,
-      server,
-    ] =
-      Object.values(
-        pair
-      );
+    const client =
+      pair[0];
 
-    const userId =
-      request.headers.get(
-        "X-NAJD-USER-ID"
-      );
+    const server =
+      pair[1];
 
-    const username =
-      request.headers.get(
-        "X-NAJD-USERNAME"
-      );
+    server.accept();
 
-    const sessionId =
-      createId(
-        "socket"
-      );
-
-    // WebSocket Hibernation API
-    this.ctx.acceptWebSocket(
+    this.sessions.add(
       server
     );
 
-    server.serializeAttachment({
-      sessionId,
-      userId,
-      username,
-      joinedAt:
-        Date.now(),
-    });
+    server.addEventListener(
+      "message",
+      event => {
 
-    server.send(
-      JSON.stringify({
-        type:
-          "connected",
+        let payload;
 
-        session_id:
-          sessionId,
+        try {
 
-        user_id:
-          userId,
+          const data =
+            JSON.parse(
+              event.data
+            );
 
-        username,
+          payload =
+            JSON.stringify(
+              {
+                success:
+                  true,
 
-        timestamp:
-          Date.now(),
-      })
+                type:
+                  "message",
+
+                data,
+
+                timestamp:
+                  Date.now(),
+              }
+            );
+
+        } catch {
+
+          payload =
+            JSON.stringify(
+              {
+                success:
+                  false,
+
+                error:
+                  "INVALID_MESSAGE",
+              }
+            );
+
+        }
+
+        for (
+          const session
+          of this.sessions
+        ) {
+
+          if (
+            session.readyState ===
+            WebSocket.OPEN
+          ) {
+
+            try {
+              session.send(
+                payload
+              );
+            } catch {}
+          }
+        }
+      }
     );
 
-    this.broadcast(
-      {
-        type:
-          "presence",
 
-        status:
-          "online",
+    const remove =
+      () => {
+        this.sessions.delete(
+          server
+        );
+      };
 
-        user_id:
-          userId,
 
-        username,
-      },
-      server
+    server.addEventListener(
+      "close",
+      remove
     );
+
+    server.addEventListener(
+      "error",
+      remove
+    );
+
 
     return new Response(
       null,
@@ -4447,226 +4012,5 @@ export class ChatRoom {
           client,
       }
     );
-  }
-
-
-  webSocketMessage(
-    ws,
-    message
-  ) {
-    const attachment =
-      ws.deserializeAttachment();
-
-    const userId =
-      attachment?.userId ||
-      null;
-
-    const username =
-      attachment?.username ||
-      null;
-
-    let data;
-
-    try {
-      data =
-        typeof message ===
-          "string"
-          ? JSON.parse(
-              message
-            )
-          : JSON.parse(
-              new TextDecoder()
-                .decode(
-                  message
-                )
-            );
-    } catch {
-      ws.send(
-        JSON.stringify({
-          type:
-            "error",
-
-          message:
-            "Invalid JSON",
-        })
-      );
-
-      return;
-    }
-
-    if (
-      data.type ===
-      "ping"
-    ) {
-      ws.send(
-        JSON.stringify({
-          type:
-            "pong",
-
-          timestamp:
-            Date.now(),
-        })
-      );
-
-      return;
-    }
-
-    if (
-      data.type ===
-      "typing"
-    ) {
-      this.broadcast(
-        {
-          type:
-            "typing",
-
-          user_id:
-            userId,
-
-          username,
-
-          is_typing:
-            Boolean(
-              data.is_typing
-            ),
-        },
-        ws
-      );
-
-      return;
-    }
-
-    if (
-      data.type ===
-      "message"
-    ) {
-      const content =
-        cleanText(
-          data.content,
-          5000
-        );
-
-      if (!content) {
-        return;
-      }
-
-      this.broadcast(
-        {
-          type:
-            "message",
-
-          id:
-            createId(
-              "realtime"
-            ),
-
-          user_id:
-            userId,
-
-          username,
-
-          content,
-
-          timestamp:
-            Date.now(),
-        }
-      );
-    }
-  }
-
-
-  webSocketClose(
-    ws,
-    code,
-    reason
-  ) {
-    const attachment =
-      ws.deserializeAttachment();
-
-    if (
-      attachment
-    ) {
-      this.broadcast(
-        {
-          type:
-            "presence",
-
-          status:
-            "offline",
-
-          user_id:
-            attachment.userId,
-
-          username:
-            attachment.username,
-        },
-        ws
-      );
-    }
-
-    try {
-      ws.close(
-        code || 1000,
-        reason ||
-          "Connection closed"
-      );
-    } catch {
-      // Already closed
-    }
-  }
-
-
-  webSocketError(
-    ws
-  ) {
-    try {
-      ws.close(
-        1011,
-        "WebSocket error"
-      );
-    } catch {
-      // Ignore
-    }
-  }
-
-
-  broadcast(
-    message,
-    except = null
-  ) {
-    const payload =
-      JSON.stringify(
-        message
-      );
-
-    const sockets =
-      this.ctx.getWebSockets();
-
-    for (
-      const socket
-      of sockets
-    ) {
-      if (
-        socket ===
-        except
-      ) {
-        continue;
-      }
-
-      try {
-        socket.send(
-          payload
-        );
-      } catch {
-        try {
-          socket.close(
-            1011,
-            "Broadcast failed"
-          );
-        } catch {
-          // Ignore
-        }
-      }
-    }
   }
 }
