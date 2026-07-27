@@ -1,0 +1,16 @@
+name = "najd-backend"
+main = "index.js"
+compatibility_date = "2026-07-27"
+
+[vars]
+JWT_SECRET = "najd_super_secret_key_2026"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "najd-db"
+database_id = "your-d1-database-id"
+
+[durable_objects]
+bindings = [
+  { name = "CHAT_ROOM", class_name = "ChatRoom" }
+]
