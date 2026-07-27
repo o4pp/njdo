@@ -1,654 +1,517 @@
-// ============================================================
-// NAJD PLATFORM API v2.3.0
-// Cloudflare Workers + D1 + Durable Objects
-// بدون R2
-// ============================================================
-
-const VERSION = "2.3.0";
-const API_NAME = "NAJD API";
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Max-Age": "86400"
-};
-
-// ============================================================
-// RESPONSE
-// ============================================================
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      ...CORS_HEADERS,
-      "Content-Type": "application/json; charset=utf-8"
-    }
-  });
-}
-
-// ============================================================
-// PASSWORD
-// ============================================================
-
-function encodePassword(password) {
-  return btoa(unescape(encodeURIComponent(password)));
-}
-
-// ============================================================
-// AUTH
-// ============================================================
-
-function getToken(request) {
-  const auth = request.headers.get("Authorization");
-
-  if (!auth) return null;
-
-  if (auth.startsWith("Bearer ")) {
-    return auth.slice(7).trim();
-  }
-
-  return auth.trim();
-}
-
-// ============================================================
-// VALIDATION
-// ============================================================
-
-function validateUsername(username) {
-  return (
-    typeof username === "string" &&
-    username.trim().length >= 3 &&
-    username.trim().length <= 30
-  );
-}
-
-function validatePassword(password) {
-  return (
-    typeof password === "string" &&
-    password.length >= 6
-  );
-}
-
-// ============================================================
-// DURABLE OBJECT CHAT ROOM
-// ============================================================
-
-export class ChatRoom {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-    this.sessions = new Set();
-  }
-
-  async fetch(request) {
-    if (request.headers.get("Upgrade") !== "websocket") {
-      return new Response("Expected Upgrade: websocket", {
-        status: 426
-      });
-    }
-
-    const pair = new WebSocketPair();
-
-    const client = pair[0];
-    const server = pair[1];
-
-    await this.handleSession(server);
-
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
-  }
-
-  async handleSession(websocket) {
-    websocket.accept();
-
-    this.sessions.add(websocket);
-
-    websocket.addEventListener("message", event => {
-      try {
-        const data = JSON.parse(event.data);
-
-        const message = JSON.stringify({
-          ...data,
-          timestamp: Date.now()
-        });
-
-        for (const session of this.sessions) {
-          if (session.readyState === WebSocket.OPEN) {
-            session.send(message);
-          }
-        }
-      } catch (error) {
-        console.error("WebSocket message error:", error);
-      }
-    });
-
-    websocket.addEventListener("close", () => {
-      this.sessions.delete(websocket);
-    });
-
-    websocket.addEventListener("error", () => {
-      this.sessions.delete(websocket);
-    });
-  }
-}
-
-// ============================================================
-// MAIN WORKER
-// ============================================================
-
 export default {
-
-  async fetch(request, env) {
-
-    const url = new URL(request.url);
-    const path = url.pathname;
-    const method = request.method.toUpperCase();
-
-    if (method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: CORS_HEADERS
-      });
-    }
-
-    try {
-
-      // ======================================================
-      // HEALTH
-      // ======================================================
-
-      if (
-        path === "/" ||
-        path === "/api" ||
-        path === "/health"
-      ) {
-
-        let database = false;
-        let durableObjects = false;
-
-        try {
-          await env.DB.prepare(
-            "SELECT 1"
-          ).first();
-
-          database = true;
-        } catch (error) {
-          database = false;
+  async fetch(request, env, ctx) {
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نجد | Najd Snap</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --najd-gold: #d4af37;
+            --najd-dark: #121212;
+            --najd-surface: #1e1e1e;
+            --najd-card: #2a2a2a;
+            --najd-border: #333333;
+            --najd-text: #ffffff;
+            --najd-muted: #aaaaaa;
         }
 
-        try {
-          durableObjects = !!env.CHAT_ROOM;
-        } catch (error) {
-          durableObjects = false;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        return json({
-          success: true,
-          name: API_NAME,
-          version: VERSION,
-          status: "online",
-          database: database ? "connected" : "error",
-          services: {
-            d1: database,
-            r2: false,
-            durable_objects: durableObjects
-          },
-          timestamp: new Date().toISOString()
+        body {
+            background-color: #000;
+            color: var(--najd-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            height: 100%;
+            background-color: var(--najd-dark);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.15);
+        }
+
+        @media (min-width: 431px) {
+            .app-container {
+                height: 90vh;
+                border-radius: 24px;
+                border: 2px solid var(--najd-border);
+            }
+        }
+
+        /* Main Viewport Slider */
+        .views-wrapper {
+            display: flex;
+            width: 300%;
+            height: calc(100% - 70px);
+            transform: translateX(33.333%);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .view {
+            width: 33.3333%;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+            background-color: var(--najd-dark);
+        }
+
+        /* Header Bar */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 10;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        .brand-title {
+            font-weight: 900;
+            font-size: 22px;
+            color: var(--najd-gold);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .brand-title span {
+            font-size: 12px;
+            background: rgba(212, 175, 55, 0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--najd-gold);
+        }
+
+        /* Bottom Navigation */
+        .nav-bar {
+            height: 70px;
+            background-color: var(--najd-surface);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid var(--najd-border);
+            z-index: 20;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--najd-muted);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--najd-gold);
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* 1. Chat View (Left) */
+        .chat-container {
+            padding: 70px 15px 20px 15px;
+        }
+
+        .section-header {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--najd-gold);
+            border-right: 4px solid var(--najd-gold);
+            padding-right: 8px;
+        }
+
+        .chat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-item {
+            background-color: var(--najd-card);
+            padding: 12px 15px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid var(--najd-border);
+        }
+
+        .chat-item:active {
+            background-color: #333;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--najd-gold), #8b5a2b);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            font-size: 18px;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .chat-info {
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .chat-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+
+        .chat-preview {
+            font-size: 13px;
+            color: var(--najd-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 2. Camera View (Center) */
+        .camera-view {
+            background-color: #000;
+            position: relative;
+        }
+
+        #camera-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 5;
+        }
+
+        .najdi-sticker {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--najd-gold);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: var(--najd-gold);
+            font-weight: 700;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .capture-btn-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            transition: transform 0.1s;
+        }
+
+        .capture-btn-container:active {
+            transform: scale(0.92);
+        }
+
+        .capture-inner {
+            width: 64px;
+            height: 64px;
+            background-color: #fff;
+            border-radius: 50%;
+        }
+
+        /* 3. Stories View (Right) */
+        .stories-container {
+            padding: 70px 15px 20px 15px;
+        }
+
+        .story-card {
+            background: linear-gradient(145deg, var(--najd-card), var(--najd-surface));
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid var(--najd-border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .story-ring {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            padding: 3px;
+            background: linear-gradient(45deg, var(--najd-gold), #ff8c00);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .story-avatar-inner {
+            width: 100%;
+            height: 100%;
+            background-color: var(--najd-dark);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: var(--najd-gold);
+        }
+
+        /* Flash Effect for Snapshot */
+        .flash {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #fff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+            transition: opacity 0.3s ease-out;
+        }
+        .flash.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="brand-title">
+                نَجْد <span>نجدي أصيل</span>
+            </div>
+            <div style="color: var(--najd-gold); font-weight: 700; font-size: 14px;" id="status-indicator">● متصل</div>
+        </div>
+
+        <!-- Flash Element -->
+        <div class="flash" id="flash-effect"></div>
+
+        <!-- Views Wrapper (Chat [0], Camera [1], Stories [2]) -->
+        <div class="views-wrapper" id="viewsWrapper">
+            
+            <!-- Chat View -->
+            <div class="view" id="chatView">
+                <div class="chat-container">
+                    <div class="section-header">الدردشة والرسائل</div>
+                    <div class="chat-list" id="chatList">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera View -->
+            <div class="view camera-view" id="cameraView">
+                <video id="camera-stream" autoplay playsinline muted></video>
+                <div class="camera-overlay">
+                    <div class="najdi_sticker">
+                        🛡️ طويق العز • نجد الحبيبة
+                    </div>
+                    <div class="capture-btn-container" id="captureBtn">
+                        <div class="capture-inner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stories View -->
+            <div class="view" id="storiesView">
+                <div class="stories-container">
+                    <div class="section-header">قصص نجد اليومية</div>
+                    <div id="storiesList">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <div class="nav-bar">
+            <button class="nav-item" id="navChat" onclick="switchView(0)">
+                <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                الدردشة
+            </button>
+            <button class="nav-item active" id="navCamera" onclick="switchView(1)">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                الكاميرا
+            </button>
+            <button class="nav-item" id="navStories" onclick="switchView(2)">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 20.55c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l2.12-2.12C9.42 20.37 10.68 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7z"/></svg>
+                القصص
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const viewsWrapper = document.getElementById('viewsWrapper');
+        const navItems = [
+            document.getElementById('navChat'),
+            document.getElementById('navCamera'),
+            document.getElementById('navStories')
+        ];
+
+        let currentViewIndex = 1; // Start at Camera
+
+        function switchView(index) {
+            currentViewIndex = index;
+            // Calculate translation percentage (Center is 33.333% offset)
+            const translateX = (1 - index) * 33.333;
+            viewsWrapper.style.transform = \`translateX(\${translateX}%)\`;
+
+            navItems.forEach((item, idx) => {
+                if (idx === index) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize Camera Stream with graceful fallback
+        async function initCamera() {
+            const videoElement = document.getElementById('camera-stream');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' }, 
+                    audio: false 
+                });
+                videoElement.srcObject = stream;
+            } catch (err) {
+                console.warn('Camera access denied or unavailable:', err);
+                // Fallback background if camera unavailable
+                videoElement.style.backgroundColor = '#111';
+            }
+        }
+
+        // Snapshot Flash Trigger
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            const flash = document.getElementById('flash-effect');
+            flash.classList.add('active');
+            setTimeout(() => {
+                flash.classList.remove('active');
+                alert('تم التقاط لقطة نجد بنجاح! 📸');
+            }, 300);
         });
-      }
 
-      // ======================================================
-      // REGISTER
-      // POST /auth/register
-      // ======================================================
+        // Load mock chat data
+        const chats = [
+            { name: 'بدر (مسعف)', preview: 'أهلين، كيف الشغل اليوم؟', initial: 'ب' },
+            { name: 'سند الرويلي', preview: 'أبشرك الأمور طيبة وعالية العال', initial: 'س' },
+            { name: 'سَجى الرويلي', preview: 'محاضرة التمريض بدأت الحين', initial: 'س' },
+            { name: 'رنا (النادي)', preview: 'لا تنسى التمرين اليوم بالصالة 💪', initial: 'ر' }
+        ];
 
-      if (
-        path === "/auth/register" &&
-        method === "POST"
-      ) {
-
-        const body = await request.json();
-
-        const username = String(
-          body.username || ""
-        ).trim().toLowerCase();
-
-        const displayName = String(
-          body.display_name || username
-        ).trim();
-
-        const password = String(
-          body.password || ""
-        );
-
-        if (!validateUsername(username)) {
-          return json({
-            success: false,
-            message: "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"
-          }, 400);
-        }
-
-        if (!validatePassword(password)) {
-          return json({
-            success: false,
-            message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
-          }, 400);
-        }
-
-        if (!displayName) {
-          return json({
-            success: false,
-            message: "الاسم مطلوب"
-          }, 400);
-        }
-
-        // فحص الحساب قبل الإدخال
-        const existingUser = await env.DB.prepare(
-          `
-          SELECT id, username
-          FROM users
-          WHERE LOWER(username) = ?
-          LIMIT 1
-          `
-        )
-        .bind(username)
-        .first();
-
-        if (existingUser) {
-          return json({
-            success: false,
-            code: "USERNAME_EXISTS",
-            message: "اسم المستخدم موجود مسبقًا"
-          }, 409);
-        }
-
-        const userId =
-          "user_" + crypto.randomUUID();
-
-        const passwordHash =
-          encodePassword(password);
-
-        const now = Date.now();
-
-        try {
-
-          await env.DB.prepare(
-            `
-            INSERT INTO users
-            (
-              id,
-              username,
-              password_hash,
-              display_name,
-              created_at
-            )
-            VALUES (?, ?, ?, ?, ?)
-            `
-          )
-          .bind(
-            userId,
-            username,
-            passwordHash,
-            displayName,
-            now
-          )
-          .run();
-
-        } catch (error) {
-
-          if (
-            String(error.message)
-              .toLowerCase()
-              .includes("unique")
-          ) {
-            return json({
-              success: false,
-              code: "USERNAME_EXISTS",
-              message: "اسم المستخدم موجود مسبقًا"
-            }, 409);
-          }
-
-          throw error;
-        }
-
-        return json({
-          success: true,
-          message: "تم إنشاء الحساب بنجاح",
-          user: {
-            id: userId,
-            username,
-            display_name: displayName
-          }
-        }, 201);
-      }
-
-      // ======================================================
-      // LOGIN
-      // POST /auth/login
-      // ======================================================
-
-      if (
-        path === "/auth/login" &&
-        method === "POST"
-      ) {
-
-        const body = await request.json();
-
-        const username = String(
-          body.username || ""
-        ).trim().toLowerCase();
-
-        const password = String(
-          body.password || ""
-        );
-
-        if (!username || !password) {
-          return json({
-            success: false,
-            message: "اسم المستخدم وكلمة المرور مطلوبة"
-          }, 400);
-        }
-
-        const passwordHash =
-          encodePassword(password);
-
-        const user = await env.DB.prepare(
-          `
-          SELECT
-            id,
-            username,
-            password_hash,
-            display_name,
-            avatar_url,
-            created_at
-          FROM users
-          WHERE LOWER(username) = ?
-          LIMIT 1
-          `
-        )
-        .bind(username)
-        .first();
-
-        if (!user) {
-          return json({
-            success: false,
-            message: "اسم المستخدم أو كلمة المرور غير صحيحة"
-          }, 401);
-        }
-
-        if (
-          user.password_hash !== passwordHash
-        ) {
-          return json({
-            success: false,
-            message: "اسم المستخدم أو كلمة المرور غير صحيحة"
-          }, 401);
-        }
-
-        // نستخدم ID كتوكين مؤقت
-        const token = user.id;
-
-        delete user.password_hash;
-
-        return json({
-          success: true,
-          message: "تم تسجيل الدخول بنجاح",
-          token,
-          user
+        const chatListEl = document.getElementById('chatList');
+        chats.forEach(chat => {
+            const item = document.createElement('div');
+            item.className = 'chat-item';
+            item.innerHTML = \`
+                <div class="avatar">\${chat.initial}</div>
+                <div class="chat-info">
+                    <div class="chat-name">\${chat.name}</div>
+                    <div class="chat-preview">\${chat.preview}</div>
+                </div>
+            \`;
+            item.onclick = () => alert('فتح محادثة مع ' + chat.name);
+            chatListEl.appendChild(item);
         });
-      }
 
-      // ======================================================
-      // CURRENT USER
-      // GET /auth/me
-      // ======================================================
+        // Load mock stories data
+        const stories = [
+            { name: 'قصص أصدقاء نجد', time: 'منذ ساعتين', initial: 'ن' },
+            { name: 'فعاليات الجامعة', time: 'منذ 4 ساعات', initial: 'ج' },
+            { name: 'أجواء الرياض ونجد', time: 'قبل قليل', initial: 'ر' }
+        ];
 
-      if (
-        path === "/auth/me" &&
-        method === "GET"
-      ) {
-
-        const token = getToken(request);
-
-        if (!token) {
-          return json({
-            success: false,
-            message: "غير مصرح"
-          }, 401);
-        }
-
-        const user = await env.DB.prepare(
-          `
-          SELECT
-            id,
-            username,
-            display_name,
-            avatar_url,
-            created_at
-          FROM users
-          WHERE id = ?
-          LIMIT 1
-          `
-        )
-        .bind(token)
-        .first();
-
-        if (!user) {
-          return json({
-            success: false,
-            message: "المستخدم غير موجود"
-          }, 401);
-        }
-
-        return json({
-          success: true,
-          user
+        const storiesListEl = document.getElementById('storiesList');
+        stories.forEach(story => {
+            const item = document.createElement('div');
+            item.className = 'story-card';
+            item.innerHTML = \`
+                <div class="story-ring">
+                    <div class="story-avatar-inner">\${story.initial}</div>
+                </div>
+                <div>
+                    <div style="font-weight: 700; font-size: 15px;">\${story.name}</div>
+                    <div style="font-size: 12px; color: var(--najd-muted); margin-top: 4px;">\${story.time}</div>
+                </div>
+            \`;
+            item.onclick = () => alert('عرض قصص: ' + story.name);
+            storiesListEl.appendChild(item);
         });
-      }
 
-      // ======================================================
-      // STORIES - GET
-      // ======================================================
-
-      if (
-        path === "/stories" &&
-        method === "GET"
-      ) {
-
-        const result = await env.DB.prepare(
-          `
-          SELECT
-            s.id,
-            s.user_id,
-            s.media_url,
-            s.media_type,
-            s.caption,
-            s.expires_at,
-            s.created_at,
-            u.username,
-            u.display_name,
-            u.avatar_url
-          FROM stories s
-          JOIN users u
-            ON s.user_id = u.id
-          WHERE s.expires_at > ?
-          ORDER BY s.created_at DESC
-          `
-        )
-        .bind(Date.now())
-        .all();
-
-        return json({
-          success: true,
-          stories: result.results || []
+        // Run camera on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCamera();
+            switchView(1); // Default to Camera screen
         });
-      }
+    </script>
+</body>
+</html>`;
 
-      // ======================================================
-      // STORIES - POST
-      // ======================================================
-
-      if (
-        path === "/stories" &&
-        method === "POST"
-      ) {
-
-        const token = getToken(request);
-
-        if (!token) {
-          return json({
-            success: false,
-            message: "يجب تسجيل الدخول أولًا"
-          }, 401);
-        }
-
-        const user = await env.DB.prepare(
-          `
-          SELECT id
-          FROM users
-          WHERE id = ?
-          LIMIT 1
-          `
-        )
-        .bind(token)
-        .first();
-
-        if (!user) {
-          return json({
-            success: false,
-            message: "جلسة الدخول غير صالحة"
-          }, 401);
-        }
-
-        const body = await request.json();
-
-        const mediaUrl = String(
-          body.media_url || ""
-        ).trim();
-
-        const mediaType = String(
-          body.media_type || ""
-        ).trim();
-
-        const caption = String(
-          body.caption || ""
-        ).trim();
-
-        if (!mediaUrl || !mediaType) {
-          return json({
-            success: false,
-            message: "رابط الوسائط ونوع الوسائط مطلوبان"
-          }, 400);
-        }
-
-        if (
-          mediaType !== "image" &&
-          mediaType !== "video"
-        ) {
-          return json({
-            success: false,
-            message: "نوع الوسائط يجب أن يكون image أو video"
-          }, 400);
-        }
-
-        const storyId =
-          "story_" + crypto.randomUUID();
-
-        const now = Date.now();
-
-        await env.DB.prepare(
-          `
-          INSERT INTO stories
-          (
-            id,
-            user_id,
-            media_url,
-            media_type,
-            caption,
-            expires_at,
-            created_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          `
-        )
-        .bind(
-          storyId,
-          token,
-          mediaUrl,
-          mediaType,
-          caption,
-          now + 86400000,
-          now
-        )
-        .run();
-
-        return json({
-          success: true,
-          message: "تم نشر القصة",
-          storyId
-        }, 201);
-      }
-
-      // ======================================================
-      // CHAT ROOM
-      // ======================================================
-
-      if (
-        path.startsWith("/chat/room/")
-      ) {
-
-        if (!env.CHAT_ROOM) {
-          return json({
-            success: false,
-            message: "خدمة المحادثة غير متاحة"
-          }, 503);
-        }
-
-        const roomId =
-          path.split("/")[3];
-
-        if (!roomId) {
-          return json({
-            success: false,
-            message: "معرف الغرفة مطلوب"
-          }, 400);
-        }
-
-        const id =
-          env.CHAT_ROOM.idFromName(roomId);
-
-        const stub =
-          env.CHAT_ROOM.get(id);
-
-        return stub.fetch(request);
-      }
-
-      // ======================================================
-      // 404
-      // ======================================================
-
-      return json({
-        success: false,
-        code: "NOT_FOUND",
-        message: "المسار غير موجود",
-        path,
-        method
-      }, 404);
-
-    } catch (error) {
-
-      console.error("API ERROR:", error);
-
-      return json({
-        success: false,
-        code: "SERVER_ERROR",
-        message: "حدث خطأ داخلي في الخادم",
-        error: error.message
-      }, 500);
-    }
-  }
+    return new Response(html, {
+      headers: {
+        "Content-Type": "text/html;charset=UTF-8",
+        "Cache-Status": "dynamic"
+      },
+    });
+  },
 };
