@@ -23,29 +23,37 @@
 
   <header class="topbar">
 
-    <h1 class="logo">
+    <h1>
       نجد
     </h1>
 
-    <button
-      id="logoutBtn"
-      class="logout-btn"
-    >
-      تسجيل الخروج
-    </button>
+    <div>
+
+      <span id="userName">
+        المستخدم
+      </span>
+
+      <button
+        id="logoutButton"
+        class="small-button"
+      >
+        خروج
+      </button>
+
+    </div>
 
   </header>
 
-  <main class="app-container">
+  <main class="app">
 
     <section class="welcome-card">
 
-      <h2 id="welcome">
-        مرحباً بك
+      <h2>
+        أهلاً بك في نجد 👋
       </h2>
 
       <p>
-        أهلاً بك في منصة نجد
+        هذه الصفحة الرئيسية لمنصة نجد.
       </p>
 
     </section>
@@ -56,11 +64,8 @@
         القصص
       </h2>
 
-      <div
-        id="stories"
-        class="stories"
-      >
-        جاري تحميل القصص...
+      <div id="stories">
+        جارٍ تحميل القصص...
       </div>
 
     </section>
@@ -71,72 +76,39 @@
 
   <script>
 
-    const token =
-      localStorage.getItem(
-        "najd_token"
-      );
+    async function loadUser() {
 
-    if (!token) {
+      const result =
+        await NajdAPI.me();
 
-      window.location.href =
-        "login.html";
+      if (!result.success) {
+
+        localStorage.clear();
+
+        window.location.href =
+          "login.html";
+
+        return;
+      }
+
+      document
+        .getElementById("userName")
+        .textContent =
+        result.user.display_name;
 
     }
 
-    const user =
-      JSON.parse(
-        localStorage.getItem(
-          "najd_user"
-        ) || "{}"
-      );
-
-    document
-      .getElementById(
-        "welcome"
-      )
-      .textContent =
-      `مرحباً ${user.display_name || user.username || ""}`;
-
-    document
-      .getElementById(
-        "logoutBtn"
-      )
-      .addEventListener(
-        "click",
-        async () => {
-
-          await NajdAPI.logout();
-
-          localStorage.removeItem(
-            "najd_token"
-          );
-
-          localStorage.removeItem(
-            "najd_user"
-          );
-
-          window.location.href =
-            "login.html";
-
-        }
-      );
-
     async function loadStories() {
-
-      const container =
-        document.getElementById(
-          "stories"
-        );
 
       const result =
         await NajdAPI.getStories();
 
-      if (
-        !result.success
-      ) {
+      const container =
+        document.getElementById("stories");
+
+      if (!result.success) {
 
         container.textContent =
-          result.message ||
           "تعذر تحميل القصص";
 
         return;
@@ -155,54 +127,47 @@
 
       container.innerHTML =
         result.stories
-          .map(
-            (story) => `
+          .map(story => `
 
-              <article class="story-card">
+            <article class="story-card">
 
-                ${
-                  story.media_type ===
-                  "video"
+              <img
+                src="${story.media_url}"
+                alt=""
+              >
 
-                    ? `
-                      <video
-                        src="${story.media_url}"
-                        controls
-                      ></video>
-                    `
+              <h3>
+                ${story.display_name}
+              </h3>
 
-                    : `
-                      <img
-                        src="${story.media_url}"
-                        alt="قصة"
-                      >
-                    `
-                }
+              <p>
+                ${story.caption || ""}
+              </p>
 
-                <div class="story-info">
+            </article>
 
-                  <strong>
-                    ${
-                      story.display_name ||
-                      story.username
-                    }
-                  </strong>
-
-                  <p>
-                    ${
-                      story.caption || ""
-                    }
-                  </p>
-
-                </div>
-
-              </article>
-
-            `
-          )
+          `)
           .join("");
 
     }
+
+    document
+      .getElementById("logoutButton")
+      .addEventListener(
+        "click",
+        async function() {
+
+          await NajdAPI.logout();
+
+          localStorage.clear();
+
+          window.location.href =
+            "login.html";
+
+        }
+      );
+
+    loadUser();
 
     loadStories();
 
