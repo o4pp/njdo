@@ -3,36 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نجد - الدردشة الحية</title>
+  <title>نجد - الدردشة</title>
   <link rel="stylesheet" href="assets/css/najd.css">
 </head>
 <body>
-  <div class="najd-container">
-    <div class="najd-header">
-      <div class="najd-logo">غرفة الدردشة العامة</div>
+  <div class="snap-container">
+    <div class="snap-header">
+      <div style="font-weight: 900; font-size: 18px; color: #fff;">الدردشات</div>
     </div>
     
-    <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px 20px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 90px;"></div>
+    <div id="chatBox" class="snap-main-view" style="gap: 12px; padding-bottom: 150px;"></div>
     
-    <div style="position: absolute; bottom: 70px; width: 100%; padding: 0 15px; display: flex; gap: 8px; background: var(--najd-dark);">
-      <input type="text" id="msgInput" class="najd-input" placeholder="اكتب رسالتك..." style="margin: 0;">
-      <button id="sendBtn" class="najd-btn" style="width: 90px; padding: 10px;">إرسال</button>
+    <div style="position: absolute; bottom: 75px; width: 100%; padding: 0 16px; display: flex; gap: 8px; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);">
+      <input type="text" id="msgInput" class="snap-input" placeholder="اكتب رسالة سناب..." style="margin: 0;">
+      <button id="sendBtn" class="snap-btn" style="width: 85px; padding: 12px; font-size: 14px;">إرسال</button>
     </div>
 
-    <div class="najd-nav-bar">
-      <a href="chat.html" class="najd-nav-item active"><span>الدردشة الحية</span></a>
-      <a href="app.html" class="najd-nav-item"><span>القصص</span></a>
+    <!-- Snapchat 5-Tab Bottom Bar -->
+    <div class="snap-nav-bar">
+      <a href="map.html" class="snap-nav-item">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        <span>الخريطة</span>
+      </a>
+      <a href="chat.html" class="snap-nav-item active">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        <span>الدردشة</span>
+      </a>
+      <a href="camera.html" class="snap-nav-item">
+        <div class="snap-camera-btn">
+          <svg viewBox="0 0 24 24" style="width: 22px; height: 22px; fill: #000;"><path d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0-5c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+        </div>
+      </a>
+      <a href="app.html" class="snap-nav-item">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>القصص</span>
+      </a>
+      <a href="spotlight.html" class="snap-nav-item">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        <span>الأضواء</span>
+      </a>
     </div>
   </div>
 
   <script>
     const token = localStorage.getItem("najd_token");
-    if (!token) { window.location.href = "login.html"; }
+    if (!token) window.location.href = "login.html";
 
     const user = JSON.parse(localStorage.getItem("najd_user") || '{"display_name": "مستخدم"}');
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/chat/room/general`;
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/chat/room/general`);
 
     const chatBox = document.getElementById("chatBox");
     const msgInput = document.getElementById("msgInput");
@@ -41,12 +60,9 @@
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       const div = document.createElement("div");
-      div.style.background = "var(--najd-card)";
-      div.style.padding = "12px 16px";
-      div.style.borderRadius = "16px";
-      div.style.maxWidth = "85%";
-      div.style.border = "1px solid var(--najd-border)";
-      div.innerHTML = `<strong style="color: var(--najd-yellow); font-size: 13px; display: block; margin-bottom: 3px;">${data.sender}</strong><span style="font-size: 14px; color: #fff;">${data.text}</span>`;
+      div.className = "snap-card-box";
+      div.style.padding = "10px 14px";
+      div.innerHTML = `<span style="color: var(--snap-yellow); font-size: 12px; font-weight: bold; display: block; margin-bottom: 2px;">${data.sender}</span><span style="font-size: 14px;">${data.text}</span>`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     };
