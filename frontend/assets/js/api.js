@@ -1,126 +1,28 @@
-const API_BASE =
-  "https://njdo.ig999x.workers.dev";
-
 const NajdAPI = {
-
   async request(endpoint, options = {}) {
-
-    const token =
-      localStorage.getItem("najd_token");
-
+    const token = localStorage.getItem("najd_token");
     const headers = {
       "Content-Type": "application/json",
-
-      ...(token
-        ? {
-            "Authorization":
-              `Bearer ${token}`
-          }
-        : {}),
-
-      ...(options.headers || {})
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...options.headers
     };
-
-    const response = await fetch(
-      `${API_BASE}/api${endpoint}`,
-      {
-        ...options,
-        headers
-      }
-    );
-
-    const text = await response.text();
-
-    try {
-      return JSON.parse(text);
-    } catch {
-      return {
-        success: false,
-        message: "استجابة غير صالحة من الخادم",
-        raw: text
-      };
-    }
-  },
-
-  register(
-    username,
-    password,
-    display_name,
-    email = null
-  ) {
-    return this.request(
-      "/auth/register",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          username,
-          password,
-          display_name,
-          email
-        })
-      }
-    );
+    const res = await fetch(`${endpoint}`, { ...options, headers });
+    return res.json();
   },
 
   login(username, password) {
-    return this.request(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          username,
-          password
-        })
-      }
-    );
+    return this.request("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
   },
 
-  logout() {
-    return this.request(
-      "/auth/logout",
-      {
-        method: "POST"
-      }
-    );
-  },
-
-  me() {
-    return this.request(
-      "/auth/me"
-    );
+  register(username, password, display_name) {
+    return this.request("/api/auth/register", { method: "POST", body: JSON.stringify({ username, password, display_name }) });
   },
 
   getStories() {
-    return this.request(
-      "/stories"
-    );
+    return this.request("/api/stories");
   },
 
-  postStory(
-    media_url,
-    media_type,
-    caption
-  ) {
-    return this.request(
-      "/stories",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          media_url,
-          media_type,
-          caption
-        })
-      }
-    );
-  },
-
-  deleteStory(id) {
-    return this.request(
-      `/stories/${id}`,
-      {
-        method: "DELETE"
-      }
-    );
+  postStory(media_url, media_type, caption) {
+    return this.request("/api/stories", { method: "POST", body: JSON.stringify({ media_url, media_type, caption }) });
   }
-
 };
