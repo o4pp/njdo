@@ -1,178 +1,77 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>نجد - الرئيسية</title>
-
-  <link
-    rel="stylesheet"
-    href="assets/css/najd.css"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نجد - القصص</title>
+  <link rel="stylesheet" href="assets/css/najd.css">
 </head>
-
 <body>
-
-  <header class="topbar">
-
-    <h1>
-      نجد
-    </h1>
-
-    <div>
-
-      <span id="userName">
-        المستخدم
-      </span>
-
-      <button
-        id="logoutButton"
-        class="small-button"
-      >
-        خروج
-      </button>
-
+  <div class="najd-container">
+    <div class="najd-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img id="userAvatar" src="" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover;">
+        <span id="userName" style="font-weight: bold; font-size: 15px;"></span>
+      </div>
+      <div class="najd-logo">نجد</div>
+    </div>
+    
+    <div style="flex: 1; overflow-y: auto; padding: 15px 20px; padding-bottom: 90px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="font-size: 18px; font-weight: 800;">القصص النشطة</h2>
+        <button id="addStoryBtn" style="background: var(--najd-yellow); border: none; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; cursor: pointer;">+ نشر قصة</button>
+      </div>
+      <div id="storiesContainer" style="display: flex; flex-direction: column; gap: 14px;"></div>
     </div>
 
-  </header>
-
-  <main class="app">
-
-    <section class="welcome-card">
-
-      <h2>
-        أهلاً بك في نجد 👋
-      </h2>
-
-      <p>
-        هذه الصفحة الرئيسية لمنصة نجد.
-      </p>
-
-    </section>
-
-    <section class="stories-section">
-
-      <h2>
-        القصص
-      </h2>
-
-      <div id="stories">
-        جارٍ تحميل القصص...
-      </div>
-
-    </section>
-
-  </main>
+    <div class="najd-nav-bar">
+      <a href="chat.html" class="najd-nav-item"><span>الدردشة الحية</span></a>
+      <a href="app.html" class="najd-nav-item active"><span>القصص</span></a>
+    </div>
+  </div>
 
   <script src="assets/js/api.js"></script>
-
   <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const token = localStorage.getItem("najd_token");
+      if (!token) { window.location.href = "login.html"; return; }
 
-    async function loadUser() {
-
-      const result =
-        await NajdAPI.me();
-
-      if (!result.success) {
-
-        localStorage.clear();
-
-        window.location.href =
-          "login.html";
-
-        return;
+      const user = JSON.parse(localStorage.getItem("najd_user") || "{}");
+      if (user.display_name) {
+        document.getElementById("userName").textContent = user.display_name;
+        document.getElementById("userAvatar").src = user.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
       }
 
-      document
-        .getElementById("userName")
-        .textContent =
-        result.user.display_name;
+      const container = document.getElementById("storiesContainer");
+      const res = await NajdAPI.getStories();
 
-    }
-
-    async function loadStories() {
-
-      const result =
-        await NajdAPI.getStories();
-
-      const container =
-        document.getElementById("stories");
-
-      if (!result.success) {
-
-        container.textContent =
-          "تعذر تحميل القصص";
-
-        return;
+      if (res.success && res.stories.length > 0) {
+        container.innerHTML = res.stories.map(s => `
+          <div style="background: var(--najd-card); border-radius: 20px; padding: 14px; border: 1px solid var(--najd-border);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <img src="${s.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+              <span style="font-weight: bold; font-size: 14px;">${s.display_name}</span>
+            </div>
+            ${s.media_url ? `<img src="${s.media_url}" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 14px;">` : ''}
+            ${s.caption ? `<p style="margin-top: 10px; font-size: 14px; color: #ddd;">${s.caption}</p>` : ''}
+          </div>
+        `).join('');
+      } else {
+        container.innerHTML = `<p style="text-align: center; color: var(--najd-gray); margin-top: 50px;">لا توجد قصص نشطة حالياً</p>`;
       }
 
-      if (
-        !result.stories ||
-        result.stories.length === 0
-      ) {
-
-        container.textContent =
-          "لا توجد قصص حالياً";
-
-        return;
-      }
-
-      container.innerHTML =
-        result.stories
-          .map(story => `
-
-            <article class="story-card">
-
-              <img
-                src="${story.media_url}"
-                alt=""
-              >
-
-              <h3>
-                ${story.display_name}
-              </h3>
-
-              <p>
-                ${story.caption || ""}
-              </p>
-
-            </article>
-
-          `)
-          .join("");
-
-    }
-
-    document
-      .getElementById("logoutButton")
-      .addEventListener(
-        "click",
-        async function() {
-
-          await NajdAPI.logout();
-
-          localStorage.clear();
-
-          window.location.href =
-            "login.html";
-
+      document.getElementById("addStoryBtn").addEventListener("click", async () => {
+        const caption = prompt("اكتب تعليق القصة:");
+        if (caption !== null) {
+          const res = await NajdAPI.postStory("", "image", caption);
+          if (res.success) {
+            window.location.reload();
+          } else {
+            alert("فشل نشر القصة");
+          }
         }
-      );
-
-    loadUser();
-
-    loadStories();
-
+      });
+    });
   </script>
-
 </body>
-
 </html>
