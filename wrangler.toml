@@ -15,3 +15,8 @@ bindings = [
 [[migrations]]
 tag = "v1"
 new_classes = ["ChatRoom"]
+
+# إعداد مجلد الملفات الثابتة (الواجهة الأمامية) لحل المشكلة
+[assets]
+directory = "./frontend"
+binding = "ASSETS"
