@@ -1,5 +1,5 @@
 name = "njdo"
-main = "worker/index.js"
+main = "index.js"
 compatibility_date = "2026-07-27"
 
 [[d1_databases]]
