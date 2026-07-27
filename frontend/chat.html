@@ -3,24 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نجد - الدردشة</title>
+  <title>نجد - الدردشة الحية</title>
   <link rel="stylesheet" href="assets/css/najd.css">
 </head>
 <body>
   <div class="najd-container">
     <div class="najd-header">
-      <div class="najd-logo">الدردشة الحية</div>
+      <div class="najd-logo">غرفة الدردشة العامة</div>
     </div>
-    <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 10px 20px; display: flex; flex-direction: column; gap: 8px; padding-bottom: 80px;"></div>
+    
+    <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px 20px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 90px;"></div>
+    
     <div style="position: absolute; bottom: 70px; width: 100%; padding: 0 15px; display: flex; gap: 8px; background: var(--najd-dark);">
       <input type="text" id="msgInput" class="najd-input" placeholder="اكتب رسالتك..." style="margin: 0;">
       <button id="sendBtn" class="najd-btn" style="width: 90px; padding: 10px;">إرسال</button>
     </div>
+
     <div class="najd-nav-bar">
-      <a href="chat.html" class="najd-nav-item active"><span>الدردشة</span></a>
+      <a href="chat.html" class="najd-nav-item active"><span>الدردشة الحية</span></a>
       <a href="app.html" class="najd-nav-item"><span>القصص</span></a>
     </div>
   </div>
-  <script src="assets/js/chat.js"></script>
+
+  <script>
+    const token = localStorage.getItem("najd_token");
+    if (!token) { window.location.href = "login.html"; }
+
+    const user = JSON.parse(localStorage.getItem("najd_user") || '{"display_name": "مستخدم"}');
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/chat/room/general`;
+    const ws = new WebSocket(wsUrl);
+
+    const chatBox = document.getElementById("chatBox");
+    const msgInput = document.getElementById("msgInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const div = document.createElement("div");
+      div.style.background = "var(--najd-card)";
+      div.style.padding = "12px 16px";
+      div.style.borderRadius = "16px";
+      div.style.maxWidth = "85%";
+      div.style.border = "1px solid var(--najd-border)";
+      div.innerHTML = `<strong style="color: var(--najd-yellow); font-size: 13px; display: block; margin-bottom: 3px;">${data.sender}</strong><span style="font-size: 14px; color: #fff;">${data.text}</span>`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    sendBtn.addEventListener("click", () => {
+      const text = msgInput.value.trim();
+      if (!text) return;
+      ws.send(JSON.stringify({ sender: user.display_name, text }));
+      msgInput.value = "";
+    });
+
+    msgInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendBtn.click();
+    });
+  </script>
 </body>
 </html>
