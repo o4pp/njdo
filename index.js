@@ -71,6 +71,7 @@ export default {
             version: "3.0.0",
             status: "online",
             database: dbStatus ? "connected" : "error",
+            services: { d1: dbStatus, durable_objects: true },
             timestamp: new Date().toISOString()
           });
         }
