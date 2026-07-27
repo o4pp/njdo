@@ -1,24 +1,130 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نجد - Snapchat Clone</title>
-  <link rel="stylesheet" href="assets/css/najd.css">
-</head>
-<body>
-  <div class="najd-container" style="justify-content: center; align-items: center; padding: 30px; text-align: center;">
-    <h1 class="najd-logo" style="font-size: 50px; margin-bottom: 10px;">نجد</h1>
-    <p style="color: var(--najd-gray); margin-bottom: 40px; font-size: 15px;">منصتك الاجتماعية للتواصل والقصص الحية</p>
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
-      <a href="login.html" class="najd-btn" style="text-decoration: none; line-height: 20px;">تسجيل الدخول</a>
-      <a href="register.html" class="najd-btn" style="background-color: var(--najd-card); color: #fff; border: 1px solid var(--najd-border); text-decoration: none; line-height: 20px;">إنشاء حساب جديد</a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+    <meta name="theme-color" content="#0d0c0a" />
+    <title>نجد — تطبيق اللحظات السعودي</title>
+    <meta name="description" content="نجد: شارك لحظاتك بالكاميرا والقصص والدردشة والخريطة، بهوية سعودية نجدية." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="phone" class="app">
+      <!-- CAMERA -->
+      <section class="screen screen--camera is-active" data-screen="camera">
+        <div class="cam-stage">
+          <video id="cam" class="cam-video" autoplay playsinline muted></video>
+          <canvas id="shot" class="cam-shot" hidden></canvas>
+          <div class="cam-fallback" id="camFallback">
+            <div class="dune"></div>
+            <div class="cam-fallback__txt">
+              <span class="lens-emoji">📷</span>
+              <p>اضغط لتفعيل الكاميرا</p>
+              <button class="btn-ghost" id="enableCam">تفعيل الكاميرا</button>
+            </div>
+          </div>
+          <header class="cam-top safe-top">
+            <button class="round-btn" data-goto="profile" aria-label="الملف الشخصي">ن</button>
+            <div class="cam-top__mid">
+              <button class="pill" id="flashBtn" aria-label="الفلاش">⚡</button>
+              <button class="pill" id="flipBtn" aria-label="تبديل الكاميرا">🔄</button>
+            </div>
+            <button class="round-btn" data-goto="chats" aria-label="بحث">🔍</button>
+          </header>
+          <div class="lens-rail" id="lensRail" role="tablist" aria-label="العدسات"></div>
+          <div class="cam-bottom safe-bottom">
+            <button class="side-btn" data-goto="stories" aria-label="القصص">🖼️</button>
+            <button class="shutter" id="shutter" aria-label="التقاط"><span></span></button>
+            <button class="side-btn" data-goto="map" aria-label="الخريطة">🗺️</button>
+          </div>
+        </div>
+        <div class="preview" id="preview" hidden>
+          <img id="previewImg" alt="معاينة اللقطة" />
+          <div class="preview__bar safe-bottom">
+            <button class="btn-ghost" id="discardShot">إلغاء</button>
+            <button class="btn-solid" id="sendShot">إرسال إلى ↗</button>
+          </div>
+        </div>
+      </section>
+      <!-- CHATS -->
+      <section class="screen screen--list" data-screen="chats">
+        <header class="list-top safe-top">
+          <h1>الدردشات</h1>
+          <button class="round-btn" data-goto="camera" aria-label="كاميرا">📸</button>
+        </header>
+        <div class="search"><input id="chatSearch" type="search" placeholder="ابحث عن صديق..." /></div>
+        <ul class="rows" id="chatList"></ul>
+      </section>
+      <!-- CHAT ROOM -->
+      <section class="screen screen--room" data-screen="room">
+        <header class="room-top safe-top">
+          <button class="round-btn" data-goto="chats" aria-label="رجوع">›</button>
+          <div class="room-who"><span class="ava" id="roomAva"></span><b id="roomName"></b></div>
+          <button class="round-btn" aria-label="اتصال">📞</button>
+        </header>
+        <div class="bubbles" id="bubbles"></div>
+        <form class="composer safe-bottom" id="composer">
+          <input id="msgInput" placeholder="اكتب رسالة..." autocomplete="off" />
+          <button class="btn-solid" type="submit">إرسال</button>
+        </form>
+      </section>
+      <!-- STORIES -->
+      <section class="screen screen--list" data-screen="stories">
+        <header class="list-top safe-top"><h1>القصص</h1></header>
+        <div class="scroll">
+          <h2 class="sec">قصتي</h2>
+          <div class="mine" id="myStory"></div>
+          <h2 class="sec">أصدقاء نجد</h2>
+          <div class="grid" id="friendStories"></div>
+          <h2 class="sec">اكتشف</h2>
+          <div class="grid grid--wide" id="discover"></div>
+        </div>
+      </section>
+      <!-- MAP -->
+      <section class="screen screen--map" data-screen="map">
+        <div class="map-canvas" id="mapCanvas">
+          <div class="map-grid"></div>
+          <div class="map-label">الرياض · نجد</div>
+        </div>
+        <div class="map-sheet safe-bottom">
+          <span class="handle"></span>
+          <h2>أصدقاء بالقرب منك</h2>
+          <div class="nearby" id="nearby"></div>
+        </div>
+      </section>
+      <!-- PROFILE -->
+      <section class="screen screen--list" data-screen="profile">
+        <header class="list-top safe-top">
+          <h1>حسابي</h1>
+          <button class="round-btn" data-goto="camera" aria-label="إغلاق">✕</button>
+        </header>
+        <div class="scroll profile">
+          <div class="me">
+            <div class="me__ava">ن</div>
+            <b>نجد الشمّري</b>
+            <span class="handle-txt">najd_sa · نجد</span>
+            <div class="score"><div><b id="score">12,480</b><span>النقاط</span></div><div><b>٣٤٢</b><span>أصدقاء</span></div><div><b>٩٨</b><span>قصص</span></div></div>
+          </div>
+          <div class="cards">
+            <button class="card">🏜️<span>ذكرياتي</span></button>
+            <button class="card">👥<span>الأصدقاء</span></button>
+            <button class="card">✨<span>عدسات نجدية</span></button>
+            <button class="card">⚙️<span>الإعدادات</span></button>
+          </div>
+        </div>
+      </section>
+      <nav class="tabbar safe-bottom" id="tabbar">
+        <button data-goto="map" aria-label="الخريطة"><i>🗺️</i><em>الخريطة</em></button>
+        <button data-goto="chats" aria-label="الدردشات"><i>💬</i><em>الدردشة</em><span class="dot" id="chatDot"></span></button>
+        <button data-goto="camera" class="is-active" aria-label="الكاميرا"><i class="cam-i"></i><em>الكاميرا</em></button>
+        <button data-goto="stories" aria-label="القصص"><i>▶️</i><em>القصص</em></button>
+        <button data-goto="profile" aria-label="الحساب"><i>👤</i><em>حسابي</em></button>
+      </nav>
     </div>
-  </div>
-  <script>
-    if (localStorage.getItem("najd_token")) {
-      window.location.href = "app.html";
-    }
-  </script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
 </html>
