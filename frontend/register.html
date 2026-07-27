@@ -2,21 +2,12 @@
 <html lang="ar" dir="rtl">
 
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>إنشاء حساب - نجد</title>
 
-  <link
-    rel="stylesheet"
-    href="assets/css/najd.css"
-  >
-
+  <link rel="stylesheet" href="assets/css/najd.css">
 </head>
 
 <body>
@@ -25,19 +16,15 @@
 
     <section class="auth-card">
 
-      <h1 class="logo">
-        نجد
-      </h1>
-
-      <p class="subtitle">
-        أنشئ حسابك الجديد
-      </p>
+      <div class="brand">
+        <h1>نجد</h1>
+        <p>أنشئ حسابك الجديد</p>
+      </div>
 
       <form id="registerForm">
 
         <input
           id="display_name"
-          class="najd-input"
           type="text"
           placeholder="الاسم الكامل"
           required
@@ -45,7 +32,6 @@
 
         <input
           id="username"
-          class="najd-input"
           type="text"
           placeholder="اسم المستخدم"
           minlength="3"
@@ -53,31 +39,30 @@
         >
 
         <input
+          id="email"
+          type="email"
+          placeholder="البريد الإلكتروني اختياري"
+        >
+
+        <input
           id="password"
-          class="najd-input"
           type="password"
           placeholder="كلمة المرور"
           minlength="6"
           required
         >
 
-        <button
-          class="najd-btn"
-          type="submit"
-        >
+        <button type="submit">
           إنشاء الحساب
         </button>
 
       </form>
 
-      <p class="auth-link">
-
+      <p class="switch">
         لديك حساب بالفعل؟
-
         <a href="login.html">
           تسجيل الدخول
         </a>
-
       </p>
 
     </section>
@@ -89,48 +74,40 @@
   <script>
 
     const form =
-      document.getElementById(
-        "registerForm"
-      );
+      document.getElementById("registerForm");
 
     form.addEventListener(
       "submit",
-      async (event) => {
+      async function(event) {
 
         event.preventDefault();
 
         const button =
-          form.querySelector(
-            "button"
-          );
+          form.querySelector("button");
 
         button.disabled = true;
 
         button.textContent =
-          "جاري إنشاء الحساب...";
+          "جارٍ إنشاء الحساب...";
 
         const result =
           await NajdAPI.register(
 
             document
-              .getElementById(
-                "username"
-              )
-              .value
-              .trim(),
-
-            document
-              .getElementById(
-                "password"
-              )
+              .getElementById("username")
               .value,
 
             document
-              .getElementById(
-                "display_name"
-              )
-              .value
-              .trim()
+              .getElementById("password")
+              .value,
+
+            document
+              .getElementById("display_name")
+              .value,
+
+            document
+              .getElementById("email")
+              .value || null
 
           );
 
@@ -150,14 +127,14 @@
             "فشل إنشاء الحساب"
           );
 
-          button.disabled =
-            false;
+          button.disabled = false;
 
           button.textContent =
             "إنشاء الحساب";
         }
 
       }
+
     );
 
   </script>
