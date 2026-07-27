@@ -1,43 +1,167 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>حساب جديد - نجد</title>
-  <link rel="stylesheet" href="assets/css/najd.css">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>إنشاء حساب - نجد</title>
+
+  <link
+    rel="stylesheet"
+    href="assets/css/najd.css"
+  >
+
 </head>
+
 <body>
-  <div class="najd-container" style="justify-content: center; padding: 30px;">
-    <div style="text-align: center; margin-bottom: 40px;">
-      <h1 class="najd-logo" style="font-size: 40px;">نجد</h1>
-      <p style="color: var(--najd-gray); margin-top: 8px;">أنشئ حسابك الجديد</p>
-    </div>
-    <form id="registerForm">
-      <input type="text" id="display_name" class="najd-input" placeholder="الاسم الكامل" required>
-      <input type="text" id="username" class="najd-input" placeholder="اسم المستخدم" required>
-      <input type="password" id="password" class="najd-input" placeholder="كلمة المرور" required>
-      <button type="submit" class="najd-btn" style="margin-top: 10px;">إنشاء الحساب</button>
-    </form>
-    <p style="text-align: center; margin-top: 20px; color: var(--najd-gray); font-size: 14px;">
-      لديك حساب بالفعل؟ <a href="login.html" style="color: var(--najd-yellow); text-decoration: none;">تسجيل الدخول</a>
-    </p>
-  </div>
+
+  <main class="auth-page">
+
+    <section class="auth-card">
+
+      <h1 class="logo">
+        نجد
+      </h1>
+
+      <p class="subtitle">
+        أنشئ حسابك الجديد
+      </p>
+
+      <form id="registerForm">
+
+        <input
+          id="display_name"
+          class="najd-input"
+          type="text"
+          placeholder="الاسم الكامل"
+          required
+        >
+
+        <input
+          id="username"
+          class="najd-input"
+          type="text"
+          placeholder="اسم المستخدم"
+          minlength="3"
+          required
+        >
+
+        <input
+          id="password"
+          class="najd-input"
+          type="password"
+          placeholder="كلمة المرور"
+          minlength="6"
+          required
+        >
+
+        <button
+          class="najd-btn"
+          type="submit"
+        >
+          إنشاء الحساب
+        </button>
+
+      </form>
+
+      <p class="auth-link">
+
+        لديك حساب بالفعل؟
+
+        <a href="login.html">
+          تسجيل الدخول
+        </a>
+
+      </p>
+
+    </section>
+
+  </main>
+
   <script src="assets/js/api.js"></script>
+
   <script>
-    document.getElementById("registerForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const res = await NajdAPI.register(
-        document.getElementById("username").value,
-        document.getElementById("password").value,
-        document.getElementById("display_name").value
+
+    const form =
+      document.getElementById(
+        "registerForm"
       );
-      if (res.success) {
-        alert("تم إنشاء الحساب بنجاح");
-        window.location.href = "login.html";
-      } else {
-        alert(res.message || "فشل إنشاء الحساب");
+
+    form.addEventListener(
+      "submit",
+      async (event) => {
+
+        event.preventDefault();
+
+        const button =
+          form.querySelector(
+            "button"
+          );
+
+        button.disabled = true;
+
+        button.textContent =
+          "جاري إنشاء الحساب...";
+
+        const result =
+          await NajdAPI.register(
+
+            document
+              .getElementById(
+                "username"
+              )
+              .value
+              .trim(),
+
+            document
+              .getElementById(
+                "password"
+              )
+              .value,
+
+            document
+              .getElementById(
+                "display_name"
+              )
+              .value
+              .trim()
+
+          );
+
+        if (result.success) {
+
+          alert(
+            "تم إنشاء الحساب بنجاح"
+          );
+
+          window.location.href =
+            "login.html";
+
+        } else {
+
+          alert(
+            result.message ||
+            "فشل إنشاء الحساب"
+          );
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "إنشاء الحساب";
+        }
+
       }
-    });
+    );
+
   </script>
+
 </body>
+
 </html>
