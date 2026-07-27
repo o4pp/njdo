@@ -1,142 +1,42 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>تسجيل الدخول - نجد</title>
-
-  <link
-    rel="stylesheet"
-    href="assets/css/najd.css"
-  >
-
+  <link rel="stylesheet" href="assets/css/najd.css">
 </head>
-
 <body>
-
-  <main class="auth-page">
-
-    <section class="auth-card">
-
-      <div class="brand">
-
-        <h1>نجد</h1>
-
-        <p>
-          مرحباً بك مجدداً
-        </p>
-
-      </div>
-
-      <form id="loginForm">
-
-        <input
-          id="username"
-          type="text"
-          placeholder="اسم المستخدم"
-          required
-        >
-
-        <input
-          id="password"
-          type="password"
-          placeholder="كلمة المرور"
-          required
-        >
-
-        <button type="submit">
-          تسجيل الدخول
-        </button>
-
-      </form>
-
-      <p class="switch">
-
-        ليس لديك حساب؟
-
-        <a href="register.html">
-          إنشاء حساب
-        </a>
-
-      </p>
-
-    </section>
-
-  </main>
-
+  <div class="najd-container" style="justify-content: center; padding: 30px;">
+    <div style="text-align: center; margin-bottom: 35px;">
+      <h1 class="najd-logo" style="font-size: 40px;">نجد</h1>
+      <p style="color: var(--najd-gray); margin-top: 6px;">أهلاً بك مجدداً</p>
+    </div>
+    <form id="loginForm">
+      <input type="text" id="username" class="najd-input" placeholder="اسم المستخدم" required>
+      <input type="password" id="password" class="najd-input" placeholder="كلمة المرور" required>
+      <button type="submit" class="najd-btn" style="margin-top: 10px;">تسجيل الدخول</button>
+    </form>
+    <p style="text-align: center; margin-top: 24px; color: var(--najd-gray); font-size: 14px;">
+      ليس لديك حساب؟ <a href="register.html" style="color: var(--najd-yellow); text-decoration: none; font-weight: bold;">انضم الآن</a>
+    </p>
+  </div>
   <script src="assets/js/api.js"></script>
-
   <script>
-
-    document
-      .getElementById("loginForm")
-      .addEventListener(
-        "submit",
-        async function(event) {
-
-          event.preventDefault();
-
-          const button =
-            this.querySelector("button");
-
-          button.disabled = true;
-
-          button.textContent =
-            "جارٍ تسجيل الدخول...";
-
-          const result =
-            await NajdAPI.login(
-
-              document
-                .getElementById("username")
-                .value,
-
-              document
-                .getElementById("password")
-                .value
-
-            );
-
-          if (result.success) {
-
-            localStorage.setItem(
-              "najd_token",
-              result.token
-            );
-
-            localStorage.setItem(
-              "najd_user",
-              JSON.stringify(result.user)
-            );
-
-            window.location.href =
-              "app.html";
-
-          } else {
-
-            alert(
-              result.message ||
-              "بيانات الدخول غير صحيحة"
-            );
-
-            button.disabled = false;
-
-            button.textContent =
-              "تسجيل الدخول";
-          }
-
-        }
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await NajdAPI.login(
+        document.getElementById("username").value,
+        document.getElementById("password").value
       );
-
+      if (res.success) {
+        localStorage.setItem("najd_token", res.token);
+        localStorage.setItem("najd_user", JSON.stringify(res.user));
+        window.location.href = "app.html";
+      } else {
+        alert(res.message || "خطأ في بيانات الدخول");
+      }
+    });
   </script>
-
 </body>
-
 </html>
