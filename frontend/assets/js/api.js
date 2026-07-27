@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8787/api";
+const API_BASE = "https://njdo.ig999x.workers.dev/"; // استبدل الرابط برابط الـ Worker الخاص بك
 
 const NajdAPI = {
   async request(endpoint, options = {}) {
@@ -8,27 +8,16 @@ const NajdAPI = {
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...options.headers
     };
-
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
-    
+    const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
     return res.json();
   },
 
   login(username, password) {
-    return this.request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ username, password })
-    });
+    return this.request("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
   },
 
   register(username, password, display_name) {
-    return this.request("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ username, password, display_name })
-    });
+    return this.request("/auth/register", { method: "POST", body: JSON.stringify({ username, password, display_name }) });
   },
 
   getStories() {
@@ -36,9 +25,6 @@ const NajdAPI = {
   },
 
   postStory(media_url, media_type, caption) {
-    return this.request("/stories", {
-      method: "POST",
-      body: JSON.stringify({ media_url, media_type, caption })
-    });
+    return this.request("/stories", { method: "POST", body: JSON.stringify({ media_url, media_type, caption }) });
   }
 };
