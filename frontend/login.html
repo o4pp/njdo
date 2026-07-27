@@ -25,19 +25,20 @@
 
     <section class="auth-card">
 
-      <h1 class="logo">
-        نجد
-      </h1>
+      <div class="brand">
 
-      <p class="subtitle">
-        مرحباً بك مجدداً
-      </p>
+        <h1>نجد</h1>
+
+        <p>
+          مرحباً بك مجدداً
+        </p>
+
+      </div>
 
       <form id="loginForm">
 
         <input
           id="username"
-          class="najd-input"
           type="text"
           placeholder="اسم المستخدم"
           required
@@ -45,22 +46,18 @@
 
         <input
           id="password"
-          class="najd-input"
           type="password"
           placeholder="كلمة المرور"
           required
         >
 
-        <button
-          class="najd-btn"
-          type="submit"
-        >
+        <button type="submit">
           تسجيل الدخول
         </button>
 
       </form>
 
-      <p class="auth-link">
+      <p class="switch">
 
         ليس لديك حساب؟
 
@@ -78,78 +75,65 @@
 
   <script>
 
-    const form =
-      document.getElementById(
-        "loginForm"
-      );
+    document
+      .getElementById("loginForm")
+      .addEventListener(
+        "submit",
+        async function(event) {
 
-    form.addEventListener(
-      "submit",
-      async (event) => {
+          event.preventDefault();
 
-        event.preventDefault();
+          const button =
+            this.querySelector("button");
 
-        const button =
-          form.querySelector(
-            "button"
-          );
-
-        button.disabled = true;
-
-        button.textContent =
-          "جاري تسجيل الدخول...";
-
-        const result =
-          await NajdAPI.login(
-
-            document
-              .getElementById(
-                "username"
-              )
-              .value
-              .trim(),
-
-            document
-              .getElementById(
-                "password"
-              )
-              .value
-
-          );
-
-        if (result.success) {
-
-          localStorage.setItem(
-            "najd_token",
-            result.token
-          );
-
-          localStorage.setItem(
-            "najd_user",
-            JSON.stringify(
-              result.user
-            )
-          );
-
-          window.location.href =
-            "app.html";
-
-        } else {
-
-          alert(
-            result.message ||
-            "بيانات الدخول غير صحيحة"
-          );
-
-          button.disabled =
-            false;
+          button.disabled = true;
 
           button.textContent =
-            "تسجيل الدخول";
-        }
+            "جارٍ تسجيل الدخول...";
 
-      }
-    );
+          const result =
+            await NajdAPI.login(
+
+              document
+                .getElementById("username")
+                .value,
+
+              document
+                .getElementById("password")
+                .value
+
+            );
+
+          if (result.success) {
+
+            localStorage.setItem(
+              "najd_token",
+              result.token
+            );
+
+            localStorage.setItem(
+              "najd_user",
+              JSON.stringify(result.user)
+            );
+
+            window.location.href =
+              "app.html";
+
+          } else {
+
+            alert(
+              result.message ||
+              "بيانات الدخول غير صحيحة"
+            );
+
+            button.disabled = false;
+
+            button.textContent =
+              "تسجيل الدخول";
+          }
+
+        }
+      );
 
   </script>
 
