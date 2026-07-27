@@ -1,15 +1,14 @@
 // ============================================================
 // NAJD PLATFORM API
-// Saudi Social Platform
-// Cloudflare Workers
-// D1 + Durable Objects + WebSocket
-// NO R2
-// Version 2.1.0
+// Cloudflare Worker
+// D1 Database
+// Durable Objects
+// WebSocket Chat
+// No R2
 // ============================================================
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const API_NAME = "NAJD API";
-
 
 // ============================================================
 // CORS
@@ -17,1795 +16,868 @@ const API_NAME = "NAJD API";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods":
-    "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-Requested-With",
-
-  "Access-Control-Max-Age":
-    "86400",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-
 // ============================================================
-// RESPONSE
+// JSON RESPONSE
 // ============================================================
 
 function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data),
-    {
-      status,
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type":
-          "application/json; charset=utf-8",
-      },
-    }
-  );
-}
-
-
-function success(data = {}, status = 200) {
-  return json(
-    {
-      success: true,
-      ...data,
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
     },
-    status
-  );
+  });
 }
-
-
-function error(
-  message,
-  code = "ERROR",
-  status = 400,
-  extra = {}
-) {
-  return json(
-    {
-      success: false,
-      error: code,
-      message,
-      ...extra,
-    },
-    status
-  );
-}
-
 
 // ============================================================
-// REQUEST HELPERS
+// PASSWORD HASH
+// SHA-256
 // ============================================================
 
-async function getJSON(request) {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
 
+  const data = encoder.encode(password);
 
-function getPath(request) {
-  const pathname =
-    new URL(request.url).pathname;
-
-  return pathname.replace(
-    /\/+$/,
-    ""
-  ) || "/";
-}
-
-
-function getQuery(
-  request,
-  key,
-  fallback = null
-) {
-  const value =
-    new URL(request.url)
-      .searchParams
-      .get(key);
-
-  return value || fallback;
-}
-
-
-function getPagination(request) {
-  const url =
-    new URL(request.url);
-
-  let page =
-    Number(
-      url.searchParams.get(
-        "page"
-      ) || 1
-    );
-
-  let limit =
-    Number(
-      url.searchParams.get(
-        "limit"
-      ) || 20
-    );
-
-  if (
-    !Number.isFinite(page) ||
-    page < 1
-  ) {
-    page = 1;
-  }
-
-  if (
-    !Number.isFinite(limit) ||
-    limit < 1
-  ) {
-    limit = 20;
-  }
-
-  page =
-    Math.floor(page);
-
-  limit =
-    Math.min(
-      Math.floor(limit),
-      50
-    );
-
-  return {
-    page,
-    limit,
-    offset:
-      (page - 1) *
-      limit,
-  };
-}
-
-
-function getBearerToken(request) {
-  const header =
-    request.headers.get(
-      "Authorization"
-    );
-
-  if (!header) {
-    return null;
-  }
-
-  const match =
-    header.match(
-      /^Bearer\s+(.+)$/i
-    );
-
-  return match
-    ? match[1].trim()
-    : null;
-}
-
-
-function normalizeEmail(email) {
-  return String(
-    email || ""
-  )
-    .trim()
-    .toLowerCase();
-}
-
-
-function normalizeUsername(
-  username
-) {
-  return String(
-    username || ""
-  )
-    .trim()
-    .toLowerCase()
-    .replace(
-      /^@/,
-      ""
-    );
-}
-
-
-function cleanText(
-  value,
-  max = 5000
-) {
-  return String(
-    value ?? ""
-  )
-    .trim()
-    .slice(
-      0,
-      max
-    );
-}
-
-
-function validEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    .test(email);
-}
-
-
-function validUsername(
-  username
-) {
-  return /^[a-zA-Z0-9_]{3,30}$/
-    .test(username);
-}
-
-
-function validPassword(
-  password
-) {
-  return (
-    typeof password === "string" &&
-    password.length >= 8
-  );
-}
-
-
-function validId(value) {
-  return (
-    typeof value === "string" &&
-    value.length >= 8 &&
-    value.length <= 200
-  );
-}
-
-
-function createId(prefix = "") {
-  const id =
-    crypto.randomUUID();
-
-  return prefix
-    ? `${prefix}_${id}`
-    : id;
-}
-
-
-// ============================================================
-// DATABASE
-// ============================================================
-
-function assertDatabase(env) {
-  if (
-    !env ||
-    !env.DB ||
-    typeof env.DB.prepare !==
-      "function"
-  ) {
-    throw new Error(
-      "D1 binding DB is not configured"
-    );
-  }
-
-  return env.DB;
-}
-
-
-async function dbFirst(
-  env,
-  query,
-  params = []
-) {
-  const DB =
-    assertDatabase(env);
-
-  return (
-    await DB
-      .prepare(query)
-      .bind(...params)
-      .first()
-  ) || null;
-}
-
-
-async function dbAll(
-  env,
-  query,
-  params = []
-) {
-  const DB =
-    assertDatabase(env);
-
-  const result =
-    await DB
-      .prepare(query)
-      .bind(...params)
-      .all();
-
-  return result.results || [];
-}
-
-
-async function dbRun(
-  env,
-  query,
-  params = []
-) {
-  const DB =
-    assertDatabase(env);
-
-  return DB
-    .prepare(query)
-    .bind(...params)
-    .run();
-}
-
-
-// ============================================================
-// PASSWORD SECURITY
-// ============================================================
-
-function randomBytes(
-  length = 32
-) {
-  const bytes =
-    new Uint8Array(
-      length
-    );
-
-  crypto.getRandomValues(
-    bytes
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    data
   );
 
-  return bytes;
-}
-
-
-function bytesToHex(bytes) {
-  return Array
-    .from(bytes)
-    .map(
-      byte =>
-        byte
-          .toString(16)
-          .padStart(
-            2,
-            "0"
-          )
-    )
+  return [...new Uint8Array(hashBuffer)]
+    .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-
-function hexToBytes(hex) {
-  if (
-    typeof hex !== "string" ||
-    hex.length % 2 !== 0
-  ) {
-    throw new Error(
-      "Invalid hexadecimal value"
-    );
-  }
-
-  const bytes =
-    new Uint8Array(
-      hex.length / 2
-    );
-
-  for (
-    let i = 0;
-    i < bytes.length;
-    i++
-  ) {
-    bytes[i] =
-      parseInt(
-        hex.slice(
-          i * 2,
-          i * 2 + 2
-        ),
-        16
-      );
-  }
-
-  return bytes;
-}
-
-
-async function sha256(
-  value
-) {
-  const data =
-    new TextEncoder()
-      .encode(
-        String(value)
-      );
-
-  const hash =
-    await crypto.subtle.digest(
-      "SHA-256",
-      data
-    );
-
-  return bytesToHex(
-    new Uint8Array(
-      hash
-    )
-  );
-}
-
-
-async function hashPassword(
-  password
-) {
-  const salt =
-    randomBytes(
-      16
-    );
-
-  const keyMaterial =
-    await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder()
-        .encode(
-          password
-        ),
-      "PBKDF2",
-      false,
-      [
-        "deriveBits",
-      ]
-    );
-
-  const derivedBits =
-    await crypto.subtle.deriveBits(
-      {
-        name:
-          "PBKDF2",
-
-        salt,
-
-        iterations:
-          100000,
-
-        hash:
-          "SHA-256",
-      },
-
-      keyMaterial,
-
-      256
-    );
-
-  return [
-    "pbkdf2",
-    "100000",
-    bytesToHex(
-      salt
-    ),
-    bytesToHex(
-      new Uint8Array(
-        derivedBits
-      )
-    ),
-  ].join("$");
-}
-
-
-async function verifyPassword(
-  password,
-  storedHash
-) {
-  try {
-    const parts =
-      String(
-        storedHash || ""
-      ).split(
-        "$"
-      );
-
-    if (
-      parts.length !== 4
-    ) {
-      return false;
-    }
-
-    const [
-      algorithm,
-      iterationsText,
-      saltHex,
-      hashHex,
-    ] =
-      parts;
-
-    if (
-      algorithm !==
-      "pbkdf2"
-    ) {
-      return false;
-    }
-
-    const iterations =
-      Number(
-        iterationsText
-      );
-
-    const salt =
-      hexToBytes(
-        saltHex
-      );
-
-    const keyMaterial =
-      await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder()
-          .encode(
-            password
-          ),
-        "PBKDF2",
-        false,
-        [
-          "deriveBits",
-        ]
-      );
-
-    const derivedBits =
-      await crypto.subtle.deriveBits(
-        {
-          name:
-            "PBKDF2",
-
-          salt,
-
-          iterations,
-
-          hash:
-            "SHA-256",
-        },
-
-        keyMaterial,
-
-        256
-      );
-
-    const result =
-      bytesToHex(
-        new Uint8Array(
-          derivedBits
-        )
-      );
-
-    return (
-      result ===
-      hashHex
-    );
-  } catch {
-    return false;
-  }
-}
-
-
 // ============================================================
-// AUTH
+// TOKEN
 // ============================================================
 
-async function createSession(
-  env,
-  userId
-) {
-  const token =
-    bytesToHex(
-      randomBytes(
-        48
-      )
-    );
-
-  const tokenHash =
-    await sha256(
-      token
-    );
-
-  const sessionId =
-    createId(
-      "session"
-    );
-
-  const now =
-    Date.now();
-
-  await dbRun(
-    env,
-    `
-      INSERT INTO sessions (
-        id,
-        user_id,
-        token_hash,
-        expires_at,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?)
-    `,
-    [
-      sessionId,
-      userId,
-      tokenHash,
-      now +
-        30 *
-        24 *
-        60 *
-        60 *
-        1000,
-      now,
-    ]
-  );
-
-  return token;
+function createToken() {
+  return crypto.randomUUID() + "-" + crypto.randomUUID();
 }
 
+// ============================================================
+// AUTHENTICATION
+// ============================================================
 
-async function getCurrentUser(
-  request,
-  env
-) {
-  const token =
-    getBearerToken(
-      request
-    );
+async function getAuthenticatedUser(request, env) {
+  const auth = request.headers.get("Authorization");
+
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = auth.replace("Bearer ", "").trim();
 
   if (!token) {
     return null;
   }
 
-  const tokenHash =
-    await sha256(
-      token
-    );
-
-  return dbFirst(
-    env,
+  const session = await env.DB.prepare(
     `
-      SELECT
-        s.id AS session_id,
-        s.user_id,
-        s.expires_at,
-
-        u.id,
-        u.username,
-        u.email,
-        u.display_name,
-        u.avatar_url,
-        u.bio,
-        u.created_at
-
-      FROM sessions s
-
-      INNER JOIN users u
-        ON u.id = s.user_id
-
-      WHERE
-        s.token_hash = ?
-
-        AND s.expires_at > ?
-
-        AND u.deleted_at IS NULL
-
-      LIMIT 1
-    `,
-    [
-      tokenHash,
-      Date.now(),
-    ]
-  );
-}
-
-
-async function requireAuth(
-  request,
-  env
-) {
-  const user =
-    await getCurrentUser(
-      request,
-      env
-    );
-
-  if (!user) {
-    return {
-      ok:
-        false,
-
-      response:
-        error(
-          "يجب تسجيل الدخول أولًا",
-          "UNAUTHORIZED",
-          401
-        ),
-    };
-  }
-
-  return {
-    ok:
-      true,
-
-    user,
-  };
-}
-
-
-function serializeUser(
-  user
-) {
-  if (!user) {
-    return null;
-  }
-
-  return {
-    id:
-      user.id,
-
-    username:
-      user.username,
-
-    email:
-      user.email,
-
-    display_name:
-      user.display_name,
-
-    avatar_url:
-      user.avatar_url,
-
-    bio:
-      user.bio,
-
-    created_at:
-      user.created_at,
-  };
-}
-
-
-// ============================================================
-// REGISTER
-// ============================================================
-
-async function register(
-  request,
-  env
-) {
-  const body =
-    await getJSON(
-      request
-    );
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
-    );
-  }
-
-  const email =
-    normalizeEmail(
-      body.email
-    );
-
-  const username =
-    normalizeUsername(
-      body.username
-    );
-
-  const password =
-    body.password;
-
-  const displayName =
-    cleanText(
-      body.display_name ||
-      body.displayName ||
-      username,
-      80
-    );
-
-  if (!validEmail(email)) {
-    return error(
-      "البريد الإلكتروني غير صحيح",
-      "INVALID_EMAIL",
-      400
-    );
-  }
-
-  if (
-    !validUsername(
-      username
-    )
-  ) {
-    return error(
-      "اسم المستخدم غير صحيح",
-      "INVALID_USERNAME",
-      400
-    );
-  }
-
-  if (
-    !validPassword(
-      password
-    )
-  ) {
-    return error(
-      "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
-      "WEAK_PASSWORD",
-      400
-    );
-  }
-
-  const existing =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          id,
-          email,
-          username
-
-        FROM users
-
-        WHERE
-          email = ?
-          OR username = ?
-
-        LIMIT 1
-      `,
-      [
-        email,
-        username,
-      ]
-    );
-
-  if (existing) {
-    return error(
-      existing.email ===
-        email
-        ? "البريد الإلكتروني مستخدم مسبقًا"
-        : "اسم المستخدم مستخدم مسبقًا",
-
-      existing.email ===
-        email
-        ? "EMAIL_EXISTS"
-        : "USERNAME_EXISTS",
-
-      409
-    );
-  }
-
-  const id =
-    createId(
-      "user"
-    );
-
-  const passwordHash =
-    await hashPassword(
-      password
-    );
-
-  const now =
-    Date.now();
-
-  await dbRun(
-    env,
+    SELECT
+      sessions.*,
+      users.username,
+      users.display_name,
+      users.email,
+      users.avatar_url,
+      users.bio
+    FROM sessions
+    JOIN users ON users.id = sessions.user_id
+    WHERE sessions.token_hash = ?
+      AND sessions.expires_at > ?
+      AND users.deleted_at IS NULL
+    LIMIT 1
     `
-      INSERT INTO users (
-        id,
-        username,
-        email,
-        password_hash,
-        display_name,
-        avatar_url,
-        bio,
-        created_at,
-        updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      id,
-      username,
-      email,
-      passwordHash,
-      displayName,
-      null,
-      "",
-      now,
-      now,
-    ]
-  );
+  )
+    .bind(token, Date.now())
+    .first();
 
-  const token =
-    await createSession(
-      env,
-      id
-    );
-
-  const user =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          id,
-          username,
-          email,
-          display_name,
-          avatar_url,
-          bio,
-          created_at
-
-        FROM users
-
-        WHERE id = ?
-      `,
-      [
-        id,
-      ]
-    );
-
-  return success(
-    {
-      message:
-        "تم إنشاء الحساب بنجاح",
-
-      token,
-
-      user:
-        serializeUser(
-          user
-        ),
-    },
-    201
-  );
+  return session || null;
 }
-
-
-// ============================================================
-// LOGIN
-// ============================================================
-
-async function login(
-  request,
-  env
-) {
-  const body =
-    await getJSON(
-      request
-    );
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
-    );
-  }
-
-  const identifier =
-    String(
-      body.identifier ||
-      body.email ||
-      body.username ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-  const password =
-    body.password;
-
-  if (
-    !identifier ||
-    !password
-  ) {
-    return error(
-      "بيانات الدخول مطلوبة",
-      "MISSING_CREDENTIALS",
-      400
-    );
-  }
-
-  const user =
-    await dbFirst(
-      env,
-      `
-        SELECT *
-        FROM users
-
-        WHERE
-          (
-            email = ?
-            OR username = ?
-          )
-
-        AND deleted_at IS NULL
-
-        LIMIT 1
-      `,
-      [
-        identifier,
-        identifier,
-      ]
-    );
-
-  if (!user) {
-    return error(
-      "بيانات الدخول غير صحيحة",
-      "INVALID_CREDENTIALS",
-      401
-    );
-  }
-
-  const valid =
-    await verifyPassword(
-      password,
-      user.password_hash
-    );
-
-  if (!valid) {
-    return error(
-      "بيانات الدخول غير صحيحة",
-      "INVALID_CREDENTIALS",
-      401
-    );
-  }
-
-  const token =
-    await createSession(
-      env,
-      user.id
-    );
-
-  return success(
-    {
-      message:
-        "تم تسجيل الدخول",
-
-      token,
-
-      user:
-        serializeUser(
-          user
-        ),
-    }
-  );
-}
-
-
-// ============================================================
-// ME
-// ============================================================
-
-async function me(
-  request,
-  env
-) {
-  const auth =
-    await requireAuth(
-      request,
-      env
-    );
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  return success(
-    {
-      user:
-        serializeUser(
-          auth.user
-        ),
-    }
-  );
-}
-
-
-// ============================================================
-// LOGOUT
-// ============================================================
-
-async function logout(
-  request,
-  env
-) {
-  const token =
-    getBearerToken(
-      request
-    );
-
-  if (token) {
-    const tokenHash =
-      await sha256(
-        token
-      );
-
-    await dbRun(
-      env,
-      `
-        DELETE FROM sessions
-        WHERE token_hash = ?
-      `,
-      [
-        tokenHash,
-      ]
-    );
-  }
-
-  return success(
-    {
-      message:
-        "تم تسجيل الخروج",
-    }
-  );
-}
-
-
-// ============================================================
-// STORIES
-// ============================================================
-
-async function getStories(
-  env
-) {
-  const stories =
-    await dbAll(
-      env,
-      `
-        SELECT
-          s.id,
-          s.user_id,
-          s.media_url,
-          s.media_type,
-          s.caption,
-          s.expires_at,
-          s.created_at,
-
-          u.username,
-          u.display_name,
-          u.avatar_url
-
-        FROM stories s
-
-        INNER JOIN users u
-          ON u.id = s.user_id
-
-        WHERE
-          s.expires_at > ?
-
-          AND u.deleted_at IS NULL
-
-        ORDER BY
-          s.created_at DESC
-      `,
-      [
-        Date.now(),
-      ]
-    );
-
-  return success(
-    {
-      stories,
-    }
-  );
-}
-
-
-async function createStory(
-  request,
-  env
-) {
-  const auth =
-    await requireAuth(
-      request,
-      env
-    );
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const body =
-    await getJSON(
-      request
-    );
-
-  if (!body) {
-    return error(
-      "بيانات غير صحيحة",
-      "INVALID_JSON",
-      400
-    );
-  }
-
-  const mediaUrl =
-    cleanText(
-      body.media_url,
-      2000
-    );
-
-  const mediaType =
-    cleanText(
-      body.media_type,
-      50
-    );
-
-  const caption =
-    cleanText(
-      body.caption,
-      1000
-    );
-
-  if (
-    !mediaUrl &&
-    !caption
-  ) {
-    return error(
-      "القصة فارغة",
-      "EMPTY_STORY",
-      400
-    );
-  }
-
-  const id =
-    createId(
-      "story"
-    );
-
-  const now =
-    Date.now();
-
-  const expiresAt =
-    now +
-    24 *
-    60 *
-    60 *
-    1000;
-
-  await dbRun(
-    env,
-    `
-      INSERT INTO stories (
-        id,
-        user_id,
-        media_url,
-        media_type,
-        caption,
-        expires_at,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      id,
-      auth.user.user_id,
-      mediaUrl || null,
-      mediaType || null,
-      caption,
-      expiresAt,
-      now,
-    ]
-  );
-
-  return success(
-    {
-      message:
-        "تم نشر القصة",
-
-      story: {
-        id,
-
-        user_id:
-          auth.user.user_id,
-
-        media_url:
-          mediaUrl || null,
-
-        media_type:
-          mediaType || null,
-
-        caption,
-
-        expires_at:
-          expiresAt,
-
-        created_at:
-          now,
-      },
-    },
-    201
-  );
-}
-
-
-// ============================================================
-// PROFILE
-// ============================================================
-
-async function getProfile(
-  env,
-  username
-) {
-  const user =
-    await dbFirst(
-      env,
-      `
-        SELECT
-          u.id,
-          u.username,
-          u.display_name,
-          u.avatar_url,
-          u.bio,
-          u.created_at,
-
-          (
-            SELECT COUNT(*)
-            FROM followers f
-            WHERE
-              f.following_id =
-              u.id
-          ) AS followers_count,
-
-          (
-            SELECT COUNT(*)
-            FROM followers f
-            WHERE
-              f.follower_id =
-              u.id
-          ) AS following_count
-
-        FROM users u
-
-        WHERE
-          u.username = ?
-
-          AND u.deleted_at IS NULL
-
-        LIMIT 1
-      `,
-      [
-        normalizeUsername(
-          username
-        ),
-      ]
-    );
-
-  if (!user) {
-    return error(
-      "المستخدم غير موجود",
-      "USER_NOT_FOUND",
-      404
-    );
-  }
-
-  return success(
-    {
-      user,
-    }
-  );
-}
-
-
-// ============================================================
-// HEALTH
-// ============================================================
-
-async function health(
-  env
-) {
-  let database =
-    "error";
-
-  try {
-    assertDatabase(
-      env
-    );
-
-    await env.DB
-      .prepare(
-        "SELECT 1 AS ok"
-      )
-      .first();
-
-    database =
-      "connected";
-  } catch (
-    err
-  ) {
-    console.error(
-      "D1 HEALTH ERROR:",
-      err
-    );
-
-    database =
-      "error";
-  }
-
-  return success(
-    {
-      name:
-        API_NAME,
-
-      version:
-        VERSION,
-
-      status:
-        "online",
-
-      database,
-
-      services: {
-        d1:
-          database ===
-          "connected",
-
-        r2:
-          false,
-
-        durable_objects:
-          Boolean(
-            env.CHAT_ROOM
-          ),
-      },
-
-      timestamp:
-        new Date()
-          .toISOString(),
-    }
-  );
-}
-
-
-// ============================================================
-// API ROUTER
-// ============================================================
-
-async function apiRouter(
-  request,
-  env
-) {
-  const method =
-    request.method
-      .toUpperCase();
-
-  const path =
-    getPath(
-      request
-    );
-
-  if (
-    method ===
-    "OPTIONS"
-  ) {
-    return new Response(
-      null,
-      {
-        status:
-          204,
-
-        headers:
-          CORS_HEADERS,
-      }
-    );
-  }
-
-  if (
-    method === "GET" &&
-    (
-      path === "/" ||
-      path === "/api" ||
-      path === "/health"
-    )
-  ) {
-    return health(
-      env
-    );
-  }
-
-  if (
-    method === "POST" &&
-    path ===
-      "/api/auth/register"
-  ) {
-    return register(
-      request,
-      env
-    );
-  }
-
-  if (
-    method === "POST" &&
-    path ===
-      "/api/auth/login"
-  ) {
-    return login(
-      request,
-      env
-    );
-  }
-
-  if (
-    method === "POST" &&
-    path ===
-      "/api/auth/logout"
-  ) {
-    return logout(
-      request,
-      env
-    );
-  }
-
-  if (
-    method === "GET" &&
-    path ===
-      "/api/auth/me"
-  ) {
-    return me(
-      request,
-      env
-    );
-  }
-
-  if (
-    method === "GET" &&
-    path ===
-      "/api/stories"
-  ) {
-    return getStories(
-      env
-    );
-  }
-
-  if (
-    method === "POST" &&
-    path ===
-      "/api/stories"
-  ) {
-    return createStory(
-      request,
-      env
-    );
-  }
-
-  const profileMatch =
-    path.match(
-      /^\/api\/users\/([^/]+)$/
-    );
-
-  if (
-    method === "GET" &&
-    profileMatch
-  ) {
-    return getProfile(
-      env,
-      profileMatch[1]
-    );
-  }
-
-  if (
-    path.startsWith(
-      "/api/chat/room/"
-    )
-  ) {
-    if (
-      !env.CHAT_ROOM ||
-      typeof env.CHAT_ROOM.idFromName !==
-        "function"
-    ) {
-      return error(
-        "Durable Object غير مربوط",
-        "DO_NOT_CONFIGURED",
-        500
-      );
-    }
-
-    const roomId =
-      path.split(
-        "/"
-      )[4];
-
-    if (!roomId) {
-      return error(
-        "معرف الغرفة مطلوب",
-        "ROOM_ID_REQUIRED",
-        400
-      );
-    }
-
-    const id =
-      env.CHAT_ROOM.idFromName(
-        roomId
-      );
-
-    const stub =
-      env.CHAT_ROOM.get(
-        id
-      );
-
-    return stub.fetch(
-      request
-    );
-  }
-
-  return error(
-    "المسار غير موجود",
-    "NOT_FOUND",
-    404,
-    {
-      path,
-      method,
-    }
-  );
-}
-
 
 // ============================================================
 // DURABLE OBJECT
 // ============================================================
 
 export class ChatRoom {
-  constructor(
-    state,
-    env
-  ) {
-    this.state =
-      state;
-
-    this.env =
-      env;
-
-    this.sessions =
-      new Set();
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.sessions = new Set();
   }
 
-  async fetch(
-    request
-  ) {
-    if (
-      request.headers.get(
-        "Upgrade"
-      ) !==
-      "websocket"
-    ) {
+  async fetch(request) {
+    const upgrade = request.headers.get("Upgrade");
+
+    if (upgrade !== "websocket") {
       return new Response(
-        "Expected Upgrade: websocket",
+        "Expected WebSocket connection",
         {
-          status:
-            426,
+          status: 426,
         }
       );
     }
 
-    const pair =
-      new WebSocketPair();
+    const pair = new WebSocketPair();
 
-    const client =
-      pair[0];
+    const client = pair[0];
+    const server = pair[1];
 
-    const server =
-      pair[1];
+    await this.handleSession(server);
 
-    server.accept();
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  }
 
-    this.sessions.add(
-      server
-    );
+  async handleSession(websocket) {
+    websocket.accept();
 
-    server.addEventListener(
+    this.sessions.add(websocket);
+
+    websocket.addEventListener(
       "message",
-      event => {
+      async (event) => {
         try {
-          const data =
-            JSON.parse(
-              event.data
-            );
+          const data = JSON.parse(event.data);
 
-          const message =
-            JSON.stringify(
-              {
-                ...data,
+          const message = JSON.stringify({
+            ...data,
+            timestamp: Date.now(),
+          });
 
-                timestamp:
-                  Date.now(),
-              }
-            );
-
-          for (
-            const session
-            of this.sessions
-          ) {
+          for (const session of this.sessions) {
             if (
-              session.readyState ===
-              WebSocket.OPEN
+              session.readyState === WebSocket.OPEN
             ) {
-              session.send(
-                message
-              );
+              session.send(message);
             }
           }
-        } catch (
-          err
-        ) {
-          server.send(
-            JSON.stringify(
-              {
-                success:
-                  false,
-
-                error:
-                  "INVALID_MESSAGE",
-
-                message:
-                  "رسالة WebSocket غير صحيحة",
-              }
-            )
+        } catch (error) {
+          console.error(
+            "WebSocket message error:",
+            error
           );
         }
       }
     );
 
-    server.addEventListener(
+    websocket.addEventListener(
       "close",
       () => {
-        this.sessions.delete(
-          server
-        );
+        this.sessions.delete(websocket);
       }
     );
 
-    server.addEventListener(
+    websocket.addEventListener(
       "error",
       () => {
-        this.sessions.delete(
-          server
-        );
-      }
-    );
-
-    return new Response(
-      null,
-      {
-        status:
-          101,
-
-        webSocket:
-          client,
+        this.sessions.delete(websocket);
       }
     );
   }
 }
 
-
 // ============================================================
-// WORKER ENTRY
+// WORKER
 // ============================================================
 
 export default {
-  async fetch(
-    request,
-    env
-  ) {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    const path = url.pathname;
+
+    const method = request.method.toUpperCase();
+
+    // ========================================================
+    // OPTIONS
+    // ========================================================
+
+    if (method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: CORS_HEADERS,
+      });
+    }
+
     try {
-      return await apiRouter(
-        request,
-        env
-      );
-    } catch (
-      err
-    ) {
-      console.error(
-        "NAJD API ERROR:",
-        err
+      // ======================================================
+      // ROOT
+      // ======================================================
+
+      if (
+        (path === "/" || path === "/api") &&
+        method === "GET"
+      ) {
+        return json({
+          success: true,
+          name: API_NAME,
+          version: VERSION,
+          status: "online",
+          database: env.DB ? "connected" : "not_configured",
+          services: {
+            d1: !!env.DB,
+            r2: false,
+            durable_objects: !!env.CHAT_ROOM,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // ======================================================
+      // HEALTH
+      // ======================================================
+
+      if (
+        path === "/health" &&
+        method === "GET"
+      ) {
+        let database = false;
+
+        if (env.DB) {
+          try {
+            await env.DB
+              .prepare("SELECT 1")
+              .first();
+
+            database = true;
+          } catch {
+            database = false;
+          }
+        }
+
+        return json({
+          success: true,
+          status: "healthy",
+          database,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // ======================================================
+      // REGISTER
+      // POST /api/auth/register
+      // ======================================================
+
+      if (
+        path === "/api/auth/register" &&
+        method === "POST"
+      ) {
+        const body = await request.json();
+
+        const username = String(
+          body.username || ""
+        ).trim();
+
+        const password = String(
+          body.password || ""
+        );
+
+        const displayName = String(
+          body.display_name ||
+          body.displayName ||
+          username
+        ).trim();
+
+        const email = body.email
+          ? String(body.email).trim()
+          : null;
+
+        if (!username) {
+          return json(
+            {
+              success: false,
+              message: "اسم المستخدم مطلوب",
+            },
+            400
+          );
+        }
+
+        if (username.length < 3) {
+          return json(
+            {
+              success: false,
+              message:
+                "اسم المستخدم يجب أن يكون 3 أحرف على الأقل",
+            },
+            400
+          );
+        }
+
+        if (!password) {
+          return json(
+            {
+              success: false,
+              message: "كلمة المرور مطلوبة",
+            },
+            400
+          );
+        }
+
+        if (password.length < 6) {
+          return json(
+            {
+              success: false,
+              message:
+                "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+            },
+            400
+          );
+        }
+
+        const existingUser =
+          await env.DB.prepare(
+            `
+            SELECT id
+            FROM users
+            WHERE username = ?
+              AND deleted_at IS NULL
+            LIMIT 1
+            `
+          )
+            .bind(username)
+            .first();
+
+        if (existingUser) {
+          return json(
+            {
+              success: false,
+              message:
+                "اسم المستخدم مستخدم بالفعل",
+            },
+            409
+          );
+        }
+
+        if (email) {
+          const existingEmail =
+            await env.DB.prepare(
+              `
+              SELECT id
+              FROM users
+              WHERE email = ?
+                AND deleted_at IS NULL
+              LIMIT 1
+              `
+            )
+              .bind(email)
+              .first();
+
+          if (existingEmail) {
+            return json(
+              {
+                success: false,
+                message:
+                  "البريد الإلكتروني مستخدم بالفعل",
+              },
+              409
+            );
+          }
+        }
+
+        const id =
+          "user_" + crypto.randomUUID();
+
+        const passwordHash =
+          await hashPassword(password);
+
+        const now = Date.now();
+
+        await env.DB.prepare(
+          `
+          INSERT INTO users (
+            id,
+            username,
+            password_hash,
+            display_name,
+            email,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          `
+        )
+          .bind(
+            id,
+            username,
+            passwordHash,
+            displayName,
+            email,
+            now,
+            now
+          )
+          .run();
+
+        return json(
+          {
+            success: true,
+            message:
+              "تم إنشاء الحساب بنجاح",
+            userId: id,
+          },
+          201
+        );
+      }
+
+      // ======================================================
+      // LOGIN
+      // POST /api/auth/login
+      // ======================================================
+
+      if (
+        path === "/api/auth/login" &&
+        method === "POST"
+      ) {
+        const body = await request.json();
+
+        const username = String(
+          body.username || ""
+        ).trim();
+
+        const password = String(
+          body.password || ""
+        );
+
+        if (!username || !password) {
+          return json(
+            {
+              success: false,
+              message:
+                "اسم المستخدم وكلمة المرور مطلوبان",
+            },
+            400
+          );
+        }
+
+        const passwordHash =
+          await hashPassword(password);
+
+        const user =
+          await env.DB.prepare(
+            `
+            SELECT *
+            FROM users
+            WHERE username = ?
+              AND password_hash = ?
+              AND deleted_at IS NULL
+            LIMIT 1
+            `
+          )
+            .bind(
+              username,
+              passwordHash
+            )
+            .first();
+
+        if (!user) {
+          return json(
+            {
+              success: false,
+              message:
+                "بيانات الدخول غير صحيحة",
+            },
+            401
+          );
+        }
+
+        const token = createToken();
+
+        const sessionId =
+          "session_" +
+          crypto.randomUUID();
+
+        const now = Date.now();
+
+        const expiresAt =
+          now + 30 * 24 * 60 * 60 * 1000;
+
+        await env.DB.prepare(
+          `
+          INSERT INTO sessions (
+            id,
+            user_id,
+            token_hash,
+            expires_at,
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?)
+          `
+        )
+          .bind(
+            sessionId,
+            user.id,
+            token,
+            expiresAt,
+            now
+          )
+          .run();
+
+        delete user.password_hash;
+
+        return json({
+          success: true,
+          token,
+          user,
+        });
+      }
+
+      // ======================================================
+      // CURRENT USER
+      // GET /api/auth/me
+      // ======================================================
+
+      if (
+        path === "/api/auth/me" &&
+        method === "GET"
+      ) {
+        const user =
+          await getAuthenticatedUser(
+            request,
+            env
+          );
+
+        if (!user) {
+          return json(
+            {
+              success: false,
+              message: "غير مصرح",
+            },
+            401
+          );
+        }
+
+        return json({
+          success: true,
+          user: {
+            id: user.user_id,
+            username: user.username,
+            display_name:
+              user.display_name,
+            email: user.email,
+            avatar_url:
+              user.avatar_url,
+            bio: user.bio,
+          },
+        });
+      }
+
+      // ======================================================
+      // LOGOUT
+      // DELETE /api/auth/logout
+      // ======================================================
+
+      if (
+        path === "/api/auth/logout" &&
+        method === "DELETE"
+      ) {
+        const auth =
+          request.headers.get(
+            "Authorization"
+          );
+
+        if (auth) {
+          const token =
+            auth.replace(
+              "Bearer ",
+              ""
+            ).trim();
+
+          await env.DB.prepare(
+            `
+            DELETE FROM sessions
+            WHERE token_hash = ?
+            `
+          )
+            .bind(token)
+            .run();
+        }
+
+        return json({
+          success: true,
+          message:
+            "تم تسجيل الخروج",
+        });
+      }
+
+      // ======================================================
+      // STORIES - GET
+      // ======================================================
+
+      if (
+        path === "/api/stories" &&
+        method === "GET"
+      ) {
+        const result =
+          await env.DB.prepare(
+            `
+            SELECT
+              stories.*,
+              users.username,
+              users.display_name,
+              users.avatar_url
+            FROM stories
+            JOIN users
+              ON users.id = stories.user_id
+            WHERE stories.expires_at > ?
+              AND users.deleted_at IS NULL
+            ORDER BY stories.created_at DESC
+            `
+          )
+            .bind(Date.now())
+            .all();
+
+        return json({
+          success: true,
+          stories:
+            result.results || [],
+        });
+      }
+
+      // ======================================================
+      // STORIES - POST
+      // ======================================================
+
+      if (
+        path === "/api/stories" &&
+        method === "POST"
+      ) {
+        const user =
+          await getAuthenticatedUser(
+            request,
+            env
+          );
+
+        if (!user) {
+          return json(
+            {
+              success: false,
+              message: "غير مصرح",
+            },
+            401
+          );
+        }
+
+        const body =
+          await request.json();
+
+        const mediaUrl =
+          String(
+            body.media_url || ""
+          ).trim();
+
+        const mediaType =
+          String(
+            body.media_type || "image"
+          ).trim();
+
+        const caption =
+          String(
+            body.caption || ""
+          ).trim();
+
+        if (!mediaUrl) {
+          return json(
+            {
+              success: false,
+              message:
+                "رابط الوسائط مطلوب",
+            },
+            400
+          );
+        }
+
+        if (
+          !["image", "video"].includes(
+            mediaType
+          )
+        ) {
+          return json(
+            {
+              success: false,
+              message:
+                "نوع الوسائط غير صحيح",
+            },
+            400
+          );
+        }
+
+        const id =
+          "story_" +
+          crypto.randomUUID();
+
+        const now = Date.now();
+
+        const expiresAt =
+          now + 24 * 60 * 60 * 1000;
+
+        await env.DB.prepare(
+          `
+          INSERT INTO stories (
+            id,
+            user_id,
+            media_url,
+            media_type,
+            caption,
+            expires_at,
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          `
+        )
+          .bind(
+            id,
+            user.user_id,
+            mediaUrl,
+            mediaType,
+            caption,
+            expiresAt,
+            now
+          )
+          .run();
+
+        return json(
+          {
+            success: true,
+            storyId: id,
+          },
+          201
+        );
+      }
+
+      // ======================================================
+      // DELETE STORY
+      // ======================================================
+
+      if (
+        path.startsWith(
+          "/api/stories/"
+        ) &&
+        method === "DELETE"
+      ) {
+        const user =
+          await getAuthenticatedUser(
+            request,
+            env
+          );
+
+        if (!user) {
+          return json(
+            {
+              success: false,
+              message: "غير مصرح",
+            },
+            401
+          );
+        }
+
+        const storyId =
+          path.split("/")[3];
+
+        const result =
+          await env.DB.prepare(
+            `
+            DELETE FROM stories
+            WHERE id = ?
+              AND user_id = ?
+            `
+          )
+            .bind(
+              storyId,
+              user.user_id
+            )
+            .run();
+
+        return json({
+          success: true,
+          deleted:
+            result.meta.changes > 0,
+        });
+      }
+
+      // ======================================================
+      // CHAT
+      // ======================================================
+
+      if (
+        path.startsWith(
+          "/api/chat/room/"
+        )
+      ) {
+        if (!env.CHAT_ROOM) {
+          return json(
+            {
+              success: false,
+              message:
+                "Durable Object غير مربوط",
+            },
+            500
+          );
+        }
+
+        const roomId =
+          path.split("/")[4];
+
+        if (!roomId) {
+          return json(
+            {
+              success: false,
+              message:
+                "معرف الغرفة مطلوب",
+            },
+            400
+          );
+        }
+
+        const id =
+          env.CHAT_ROOM.idFromName(
+            roomId
+          );
+
+        const stub =
+          env.CHAT_ROOM.get(id);
+
+        return stub.fetch(request);
+      }
+
+      // ======================================================
+      // 404
+      // ======================================================
+
+      return json(
+        {
+          success: false,
+          message:
+            "المسار غير موجود",
+          path,
+          method,
+        },
+        404
       );
 
-      return error(
-        "حدث خطأ داخلي في الخادم",
-        "INTERNAL_SERVER_ERROR",
-        500,
+    } catch (error) {
+      console.error(
+        "API ERROR:",
+        error
+      );
+
+      return json(
         {
-          details:
-            err.message,
-        }
+          success: false,
+          message:
+            "حدث خطأ داخلي في الخادم",
+          error:
+            error.message,
+        },
+        500
       );
     }
   },
