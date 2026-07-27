@@ -1,42 +1,158 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>تسجيل الدخول - نجد</title>
-  <link rel="stylesheet" href="assets/css/najd.css">
+
+  <link
+    rel="stylesheet"
+    href="assets/css/najd.css"
+  >
+
 </head>
+
 <body>
-  <div class="najd-container" style="justify-content: center; padding: 30px;">
-    <div style="text-align: center; margin-bottom: 40px;">
-      <h1 class="najd-logo" style="font-size: 40px;">نجد</h1>
-      <p style="color: var(--najd-gray); margin-top: 8px;">مرحباً بك مجدداً</p>
-    </div>
-    <form id="loginForm">
-      <input type="text" id="username" class="najd-input" placeholder="اسم المستخدم" required>
-      <input type="password" id="password" class="najd-input" placeholder="كلمة المرور" required>
-      <button type="submit" class="najd-btn" style="margin-top: 10px;">تسجيل الدخول</button>
-    </form>
-    <p style="text-align: center; margin-top: 20px; color: var(--najd-gray); font-size: 14px;">
-      ليس لديك حساب؟ <a href="register.html" style="color: var(--najd-yellow); text-decoration: none;">انضم إلى نجد</a>
-    </p>
-  </div>
+
+  <main class="auth-page">
+
+    <section class="auth-card">
+
+      <h1 class="logo">
+        نجد
+      </h1>
+
+      <p class="subtitle">
+        مرحباً بك مجدداً
+      </p>
+
+      <form id="loginForm">
+
+        <input
+          id="username"
+          class="najd-input"
+          type="text"
+          placeholder="اسم المستخدم"
+          required
+        >
+
+        <input
+          id="password"
+          class="najd-input"
+          type="password"
+          placeholder="كلمة المرور"
+          required
+        >
+
+        <button
+          class="najd-btn"
+          type="submit"
+        >
+          تسجيل الدخول
+        </button>
+
+      </form>
+
+      <p class="auth-link">
+
+        ليس لديك حساب؟
+
+        <a href="register.html">
+          إنشاء حساب
+        </a>
+
+      </p>
+
+    </section>
+
+  </main>
+
   <script src="assets/js/api.js"></script>
+
   <script>
-    document.getElementById("loginForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const res = await NajdAPI.login(
-        document.getElementById("username").value,
-        document.getElementById("password").value
+
+    const form =
+      document.getElementById(
+        "loginForm"
       );
-      if (res.success) {
-        localStorage.setItem("najd_token", res.token);
-        localStorage.setItem("najd_user", JSON.stringify(res.user));
-        window.location.href = "app.html";
-      } else {
-        alert(res.message || "خطأ في بيانات الدخول");
+
+    form.addEventListener(
+      "submit",
+      async (event) => {
+
+        event.preventDefault();
+
+        const button =
+          form.querySelector(
+            "button"
+          );
+
+        button.disabled = true;
+
+        button.textContent =
+          "جاري تسجيل الدخول...";
+
+        const result =
+          await NajdAPI.login(
+
+            document
+              .getElementById(
+                "username"
+              )
+              .value
+              .trim(),
+
+            document
+              .getElementById(
+                "password"
+              )
+              .value
+
+          );
+
+        if (result.success) {
+
+          localStorage.setItem(
+            "najd_token",
+            result.token
+          );
+
+          localStorage.setItem(
+            "najd_user",
+            JSON.stringify(
+              result.user
+            )
+          );
+
+          window.location.href =
+            "app.html";
+
+        } else {
+
+          alert(
+            result.message ||
+            "بيانات الدخول غير صحيحة"
+          );
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "تسجيل الدخول";
+        }
+
       }
-    });
+    );
+
   </script>
+
 </body>
+
 </html>
