@@ -1,25 +1,14 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE,
     password_hash TEXT NOT NULL,
     display_name TEXT NOT NULL,
-    email TEXT UNIQUE,
     avatar_url TEXT DEFAULT 'https://api.iconify.design/solar:user-bold-duotone.svg',
     bio TEXT DEFAULT '',
     created_at INTEGER NOT NULL,
     updated_at INTEGER,
     deleted_at INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    token_hash TEXT NOT NULL UNIQUE,
-    expires_at INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
-
-    FOREIGN KEY (user_id)
-    REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS stories (
@@ -40,10 +29,18 @@ CREATE TABLE IF NOT EXISTS friendships (
     friend_id TEXT NOT NULL,
     status TEXT DEFAULT 'accepted',
 
-    PRIMARY KEY (
-        user_id,
-        friend_id
-    )
+    PRIMARY KEY (user_id, friend_id)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+
+    FOREIGN KEY (user_id)
+    REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token_hash
